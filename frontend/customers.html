@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clientes — Sistema POS</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="js/theme.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
+  <link rel="apple-touch-icon" href="img/icon.svg">
+</head>
+<body>
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="app-shell">
+  <header class="app-header">
+    <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    <div class="app-logo"><div class="logo-icon">🏪</div><span>POS Venezuela</span></div>
+    <div class="bcv-badge"><span class="bcv-flag">🇻🇪</span><span>BCV: 1$ = <strong id="bcv-rate">--</strong> Bs</span><div class="bcv-pulse"></div></div>
+    <div class="header-spacer"></div>
+    
+    <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema" style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
+      <i id="theme-icon" class="fa-solid fa-moon"></i>
+    </button>
+
+    <div class="header-user">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div><div id="user-name" style="font-weight:600;font-size:0.8rem;"></div><div class="user-role" id="user-role"></div></div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+    </div>
+  </header>
+  <nav class="app-nav">
+    <span class="nav-section-label">Menú</span>
+    <a href="/pos.html"       class="nav-item"><i class="fa-solid fa-cash-register"></i> Punto de Venta</a>
+    <a href="/products.html"  class="nav-item"><i class="fa-solid fa-box"></i> Productos</a>
+    <a href="/customers.html" class="nav-item active"><i class="fa-solid fa-users"></i> Clientes</a>
+    <a href="/reports.html"   class="nav-item"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
+    <div class="nav-bottom">
+      <button class="nav-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
+    </div>
+  </nav>
+  <main class="app-main">
+    <div class="page-header">
+      <div>
+        <div class="page-title"><i class="fa-solid fa-users" style="color:var(--violet-light);"></i> Clientes</div>
+        <div class="page-subtitle">Administra la cartera de clientes</div>
+      </div>
+      <div style="display:flex;gap:0.5rem;">
+        <div class="search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="search-input" class="search-input" placeholder="Buscar cliente..." oninput="searchCustomers(this.value)">
+        </div>
+        <button class="btn btn-primary" onclick="openCustomerModal()">
+          <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
+        </button>
+      </div>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:1.5rem;">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(124,58,237,0.2);color:var(--violet-light);"><i class="fa-solid fa-users"></i></div>
+        <div class="stat-label">Total Clientes</div><div class="stat-value" id="stat-total">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(16,185,129,0.2);color:var(--emerald-light);"><i class="fa-solid fa-id-card"></i></div>
+        <div class="stat-label">Con Cédula/RIF</div><div class="stat-value" id="stat-withdoc">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(14,165,233,0.2);color:#38bdf8;"><i class="fa-solid fa-phone"></i></div>
+        <div class="stat-label">Con Teléfono</div><div class="stat-value" id="stat-withphone">--</div>
+      </div>
+    </div>
+
+    <div class="customer-card-grid" id="customer-grid">
+      <div class="loading-state"><div class="spinner"></div><span>Cargando...</span></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal Customer -->
+<div class="modal-overlay hidden" id="customer-modal" onclick="closeOnOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-cust-title"><i class="fa-solid fa-user-plus" style="color:var(--violet-light);"></i> Nuevo Cliente</div>
+      <button class="btn-close" onclick="closeModal('customer-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cust-id">
+      <div class="form-group">
+        <label class="form-label">Nombre completo *</label>
+        <input id="cust-name" class="form-control" placeholder="Ej: Juan Pérez">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tipo de documento</label>
+          <select id="cust-doctype" class="form-control">
+            <option value="V">V — venezolano</option>
+            <option value="E">E — extranjero</option>
+            <option value="J">J — empresa (RIF)</option>
+            <option value="G">G — gobierno</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Número de documento</label>
+          <input id="cust-docnum" class="form-control" placeholder="Ej: 12345678">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Teléfono</label>
+          <input id="cust-phone" class="form-control" placeholder="Ej: 0414-1234567">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Correo electrónico</label>
+          <input id="cust-email" class="form-control" placeholder="correo@ejemplo.com" type="email">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dirección</label>
+        <input id="cust-address" class="form-control" placeholder="Dirección completa">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('customer-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCustomer()"><i class="fa-solid fa-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detail -->
+<div class="modal-overlay hidden" id="detail-modal" onclick="closeOnOverlayClick(event)">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-user" style="color:var(--violet-light);"></i> Detalle del Cliente</div>
+      <button class="btn-close" onclick="closeModal('detail-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/customers.js"></script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reportes — Sistema POS</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="js/theme.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
+  <link rel="apple-touch-icon" href="img/icon.svg">
+</head>
+<body>
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="app-shell">
+  <header class="app-header">
+    <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    <div class="app-logo"><div class="logo-icon">🏪</div><span>POS Venezuela</span></div>
+    <div class="bcv-badge"><span class="bcv-flag">🇻🇪</span><span>BCV: 1$ = <strong id="bcv-rate">--</strong> Bs</span><div class="bcv-pulse"></div></div>
+    <div class="header-spacer"></div>
+    
+    <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema" style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
+      <i id="theme-icon" class="fa-solid fa-moon"></i>
+    </button>
+
+    <div class="header-user">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div><div id="user-name" style="font-weight:600;font-size:0.8rem;"></div><div class="user-role" id="user-role"></div></div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+    </div>
+  </header>
+  <nav class="app-nav">
+    <span class="nav-section-label">Menú</span>
+    <a href="/pos.html"       class="nav-item"><i class="fa-solid fa-cash-register"></i> Punto de Venta</a>
+    <a href="/products.html"  class="nav-item"><i class="fa-solid fa-box"></i> Productos</a>
+    <a href="/customers.html" class="nav-item"><i class="fa-solid fa-users"></i> Clientes</a>
+    <a href="/reports.html"   class="nav-item active"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
+    <div class="nav-bottom">
+      <button class="nav-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
+    </div>
+  </nav>
+  <main class="app-main">
+    <div class="page-header">
+      <div>
+        <div class="page-title"><i class="fa-solid fa-chart-bar" style="color:var(--violet-light);"></i> Reportes y Estadísticas</div>
+        <div class="page-subtitle">Análisis de ventas en tiempo real</div>
+      </div>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <label style="font-size:0.78rem;color:var(--text-muted);">Desde:</label>
+        <input type="date" id="date-from" class="form-control" style="width:auto;">
+        <label style="font-size:0.78rem;color:var(--text-muted);">Hasta:</label>
+        <input type="date" id="date-to"   class="form-control" style="width:auto;">
+        <button class="btn btn-primary btn-sm" onclick="loadReports()">
+          <i class="fa-solid fa-rotate"></i> Actualizar
+        </button>
+      </div>
+    </div>
+
+    <!-- Metric cards -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="metric-card">
+        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem;">Ventas Totales</div>
+        <div class="metric-value" id="m-count">--</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem;">Ingresos USD</div>
+        <div class="metric-value" id="m-usd" style="color:var(--usd-color);">--</div>
+        <div class="metric-sub" id="m-bs">--</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem;">IVA Cobrado</div>
+        <div class="metric-value" id="m-tax" style="color:#fb7185;">--</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem;">Ticket Promedio</div>
+        <div class="metric-value" id="m-avg" style="color:var(--violet-light);">--</div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="content-grid-2" style="margin-bottom:1.25rem;">
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-chart-line" style="color:var(--violet-light);"></i> Ventas por Día</div>
+        <div class="chart-container"><canvas id="daily-chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-chart-pie" style="color:var(--emerald);"></i> Métodos de Pago</div>
+        <div class="chart-container"><canvas id="payment-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Products + inventory -->
+    <div class="content-grid-2">
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-trophy" style="color:var(--amber);"></i> Productos Más Vendidos</div>
+        <div id="top-products-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-triangle-exclamation" style="color:var(--rose);"></i> Stock Bajo</div>
+        <div id="low-stock-list"></div>
+      </div>
+    </div>
+
+    <!-- Sales history -->
+    <div class="card" style="margin-top:1.25rem;padding:0;">
+      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-receipt" style="color:var(--sky);"></i> Historial de Ventas</div>
+        <button class="btn btn-outline btn-sm" onclick="downloadSalesCSV()" id="btn-download-sales" disabled>
+          <i class="fa-solid fa-file-csv"></i> Descargar CSV
+        </button>
+      </div>
+      <div class="table-wrapper" style="border:none;border-radius:0;">
+        <table>
+          <thead><tr><th>Factura</th><th>Cliente</th><th>Cajero</th><th>Método</th><th>Total USD</th><th>Total Bs</th><th>Estado</th><th>Fecha</th></tr></thead>
+          <tbody id="sales-tbody"><tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container"></div>
+<script src="js/api.js"></script>
+<script src="js/reports.js"></script>
+</body>
+</html>

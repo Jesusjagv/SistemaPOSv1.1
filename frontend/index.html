@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema POS v1.0 — Iniciar Sesión</title>
+  <meta name="description" content="Sistema de Punto de Venta para Venezuela con tasa BCV actualizada diariamente">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="js/theme.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
+  <link rel="apple-touch-icon" href="img/icon.svg">
+</head>
+<body>
+  <div class="login-page">
+    <!-- Background orbs -->
+    <div class="login-bg-orb login-bg-orb-1"></div>
+    <div class="login-bg-orb login-bg-orb-2"></div>
+    
+    <button class="btn btn-ghost" onclick="toggleTheme()" 
+      style="position:absolute;top:1rem;right:1rem;z-index:10;border-radius:50%;width:40px;height:40px;padding:0;">
+      <i id="theme-icon" class="fa-solid fa-moon"></i>
+    </button>
+
+    <div class="login-card">
+      <!-- Logo -->
+      <div class="login-logo">
+        <div class="logo-box">🏪</div>
+        <h1>Sistema POS v1.0</h1>
+        <p>Venezuela &bull; IVA 16% &bull; USD / Bs BCV</p>
+      </div>
+
+      <!-- Error message -->
+      <div class="login-error" id="login-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="login-error-msg">Credenciales incorrectas</span>
+      </div>
+
+      <!-- Login Form -->
+      <form class="login-form" id="login-form" autocomplete="on">
+        <div class="form-group">
+          <label class="form-label" for="username">
+            <i class="fa-solid fa-user"></i> Usuario
+          </label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            class="form-control"
+            placeholder="Ingresa tu usuario"
+            autocomplete="username"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">
+            <i class="fa-solid fa-lock"></i> Contraseña
+          </label>
+          <div style="position:relative;">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              class="form-control"
+              placeholder="Ingresa tu contraseña"
+              autocomplete="current-password"
+              required
+              style="padding-right:2.5rem;"
+            >
+            <button type="button" id="toggle-pwd"
+              style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.9rem;">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg login-btn w-full" id="login-btn">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          Iniciar Sesión
+        </button>
+      </form>
+
+      <!-- Hint -->
+      <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);text-align:center;">
+        <p style="font-size:0.72rem;color:var(--text-muted);">
+          <i class="fa-solid fa-shield-halved" style="color:var(--violet-light);"></i>
+          Usuarios por defecto: <code style="color:var(--violet-light);">admin/admin123</code>
+          &nbsp;|&nbsp; <code style="color:var(--emerald);">cajero/cajero123</code>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (isLoggedIn()) window.location.href = '/pos.html';
+
+    const form     = document.getElementById('login-form');
+    const errBox   = document.getElementById('login-error');
+    const errMsg   = document.getElementById('login-error-msg');
+    const loginBtn = document.getElementById('login-btn');
+    const pwdInput = document.getElementById('password');
+    const togglePwd = document.getElementById('toggle-pwd');
+
+    togglePwd.addEventListener('click', () => {
+      const isText = pwdInput.type === 'text';
+      pwdInput.type = isText ? 'password' : 'text';
+      togglePwd.innerHTML = isText
+        ? '<i class="fa-solid fa-eye"></i>'
+        : '<i class="fa-solid fa-eye-slash"></i>';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errBox.style.display = 'none';
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="spinner"></span> Iniciando...';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const data = await api.post('/auth/login', { username, password });
+        saveSession(data.token, data.user);
+        showToast(`¡Bienvenido, ${data.user.name}!`, 'success', 1500);
+        setTimeout(() => {
+          window.location.href = '/pos.html';
+        }, 600);
+      } catch (err) {
+        errMsg.textContent = err.message;
+        errBox.style.display = 'flex';
+        errBox.style.gap = '0.5rem';
+        errBox.style.alignItems = 'center';
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+      }
+    });
+  </script>
+</body>
+</html>

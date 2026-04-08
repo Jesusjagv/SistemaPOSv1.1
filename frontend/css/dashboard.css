@@ -1,0 +1,196 @@
+/* ================================================
+   Dashboard / Admin Pages Styles
+   ================================================ */
+
+/* Reusable grid layouts */
+.content-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+.content-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 900px) {
+  .content-grid-2, .content-grid-3 { grid-template-columns: 1fr; }
+}
+
+/* ── Stock indicator ─────────────────────────────── */
+.stock-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+.stock-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.stock-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: var(--transition);
+}
+
+/* ── Product form image ──────────────────────────── */
+.img-placeholder {
+  width: 80px; height: 80px;
+  background: var(--bg-input);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.img-placeholder:hover { border-color: var(--violet); }
+
+/* ── Chart container ─────────────────────────────── */
+.chart-container {
+  position: relative;
+  height: 240px;
+}
+
+/* ── Filters bar ─────────────────────────────────── */
+.filters-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Product table actions ───────────────────────── */
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ── Report period selector ──────────────────────── */
+.period-tabs {
+  display: flex;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+.period-tab {
+  padding: 0.3rem 0.75rem;
+  border-radius: calc(var(--radius-md) - 2px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: var(--transition);
+  border: none;
+  background: transparent;
+}
+.period-tab.active {
+  background: var(--violet);
+  color: white;
+}
+
+/* ── Customer history ───────────────────────────── */
+.customer-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.customer-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem;
+  transition: var(--transition);
+}
+.customer-card:hover {
+  border-color: var(--violet);
+  transform: translateY(-2px);
+}
+.customer-card-avatar {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--violet), var(--violet-light));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+.customer-card-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+.customer-card-doc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+.customer-card-info {
+  display: flex; flex-direction: column; gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.customer-card-info i { width: 14px; text-align: center; }
+
+/* ── Sales history modal ──────────────────────────── */
+.sale-row-clickable {
+  cursor: pointer;
+}
+.sale-row-clickable:hover td { color: var(--violet-light); }
+
+/* ── Report metric cards ─────────────────────────── */
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  text-align: center;
+}
+.metric-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.metric-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+.metric-sub   { font-size: 0.78rem; color: var(--bs-color); font-weight: 600; margin-top: 0.15rem; }
+
+/* ── Users management ────────────────────────────── */
+.user-row-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.8rem;
+}
+.user-row-avatar.admin    { background: rgba(124,58,237,0.25); color: var(--violet-light); }
+.user-row-avatar.cashier  { background: rgba(16,185,129,0.2); color: var(--emerald-light); }
+
+/* ── Page tabs ────────────────────────────────────── */
+.page-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  gap: 0;
+}
+.page-tab {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: var(--transition);
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+.page-tab:hover { color: var(--text-secondary); }
+.page-tab.active { color: var(--violet-light); border-bottom-color: var(--violet); }

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Productos — Sistema POS</title>
+  <link rel="stylesheet" href="css/main.css?v=2">
+  <link rel="stylesheet" href="css/dashboard.css?v=2">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="apple-touch-icon" href="img/icon.svg">
+  <script src="https://cdn.jsdelivr.net/npm/qr-scanner/qr-scanner.umd.min.js"></script>
+</head>
+<body>
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="app-shell">
+  <!-- Header -->
+  <header class="app-header">
+    <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    <div class="app-logo"><div class="logo-icon">🏪</div><span>POS Venezuela</span></div>
+    <div class="bcv-badge">
+      <span class="bcv-flag">🇻🇪</span><span>BCV:</span>
+      <span class="bcv-rate">1$ = <strong id="bcv-rate">--</strong> Bs</span>
+      <div class="bcv-pulse"></div>
+    </div>
+    <div class="header-spacer"></div>
+
+    <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema" style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
+      <i id="theme-icon" class="fa-solid fa-moon"></i>
+    </button>
+
+    <div class="header-user">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div><div id="user-name" style="font-weight:600;font-size:0.8rem;"></div><div class="user-role" id="user-role"></div></div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="app-nav">
+    <span class="nav-section-label">Menú</span>
+    <a href="/pos.html"       class="nav-item"><i class="fa-solid fa-cash-register"></i> Punto de Venta</a>
+    <a href="/products.html"  class="nav-item active"><i class="fa-solid fa-box"></i> Productos</a>
+    <a href="/customers.html" class="nav-item"><i class="fa-solid fa-users"></i> Clientes</a>
+    <a href="/reports.html"   class="nav-item"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
+    <div class="nav-bottom">
+      <button class="nav-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="app-main">
+    <div class="page-header">
+      <div>
+        <div class="page-title"><i class="fa-solid fa-box" style="color:var(--violet-light);"></i> Gestión de Productos</div>
+        <div class="page-subtitle">Administra tu inventario de productos</div>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <div class="search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="search-input" class="search-input" placeholder="Buscar producto..." oninput="filterProducts(this.value)">
+        </div>
+        <select id="cat-filter" class="form-control" style="width:auto;" onchange="filterProducts()">
+          <option value="">Todas las categorías</option>
+        </select>
+        <button class="btn btn-primary" onclick="openProductModal()" id="btn-add">
+          <i class="fa-solid fa-plus"></i> Nuevo Producto
+        </button>
+        <button class="btn btn-primary" onclick="openQrScanner()" title="Escanear Producto">
+          <i class="fa-solid fa-qrcode"></i>
+        </button>
+        <button class="btn btn-outline" onclick="openCatModal()" id="btn-cat">
+          <i class="fa-solid fa-tags"></i> Categorías
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(124,58,237,0.2);color:var(--violet-light);"><i class="fa-solid fa-box"></i></div>
+        <div class="stat-label">Total Productos</div>
+        <div class="stat-value" id="stat-total">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(16,185,129,0.2);color:var(--emerald-light);"><i class="fa-solid fa-check-circle"></i></div>
+        <div class="stat-label">Activos</div>
+        <div class="stat-value" id="stat-active">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(245,158,11,0.2);color:#fbbf24;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="stat-label">Stock Bajo</div>
+        <div class="stat-value" id="stat-low">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(244,63,94,0.2);color:#fb7185;"><i class="fa-solid fa-ban"></i></div>
+        <div class="stat-label">Sin Stock</div>
+        <div class="stat-value" id="stat-zero">--</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card" style="padding:0;">
+      <div class="table-wrapper">
+        <table id="products-table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Código</th>
+              <th>Categoría</th>
+              <th>Precio USD</th>
+              <th>Precio Bs</th>
+              <th>Costo</th>
+              <th>Stock</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Product -->
+<div class="modal-overlay hidden" id="product-modal" onclick="closeOnOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-prod-title"><i class="fa-solid fa-box" style="color:var(--violet-light);"></i> Nuevo Producto</div>
+      <button class="btn-close" onclick="closeModal('product-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="prod-id">
+      <div class="form-row">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Nombre del Producto *</label>
+          <input id="prod-name" class="form-control" placeholder="Ej: Agua Mineral 600ml">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Código</label>
+          <input id="prod-code" class="form-control" placeholder="Ej: P001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoría</label>
+          <select id="prod-cat" class="form-control"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Precio de Venta (USD) *</label>
+          <input id="prod-price" type="number" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="updatePriceBsPreview()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Precio de Costo (USD)</label>
+          <input id="prod-cost" type="number" class="form-control" placeholder="0.00" step="0.01" min="0">
+        </div>
+      </div>
+      <div id="bs-preview" style="font-size:0.78rem;color:var(--bs-color);margin-top:-0.5rem;"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Stock Actual</label>
+          <input id="prod-stock" type="number" class="form-control" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock Mínimo (alerta)</label>
+          <input id="prod-minstock" type="number" class="form-control" placeholder="5" min="0">
+        </div>
+      </div>
+      <div class="form-group" id="prod-active-row" style="display:none;">
+        <label class="form-label">Estado</label>
+        <select id="prod-active" class="form-control">
+          <option value="1">Activo</option>
+          <option value="0">Inactivo</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('product-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProduct()"><i class="fa-solid fa-save"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Categories -->
+<div class="modal-overlay hidden" id="cat-modal" onclick="closeOnOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-tags" style="color:var(--violet-light);"></i> Categorías</div>
+      <button class="btn-close" onclick="closeModal('cat-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:0.5rem;">
+        <input id="new-cat-name" class="form-control" placeholder="Nombre de nueva categoría">
+        <input id="new-cat-color" type="color" value="#7c3aed" style="width:40px;height:38px;border:none;background:none;cursor:pointer;">
+        <button class="btn btn-primary btn-sm" onclick="createCategory()"><i class="fa-solid fa-plus"></i></button>
+      </div>
+      <div id="cat-list" style="max-height:300px;overflow-y:auto;margin-top:0.5rem;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- QR Scanner Modal -->
+<div id="qr-modal" class="modal-overlay hidden" onclick="closeOnOverlayClick(event)">
+    <div class="modal" style="width:min(95vw, 500px); padding:0; overflow:hidden;">
+        <div class="modal-header" style="padding:1rem 1.5rem;">
+            <div class="modal-title"><i class="fa-solid fa-qrcode" style="color:var(--violet-light);"></i> Buscar Producto por QR</div>
+            <button class="btn-close" onclick="closeQrScanner()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="padding:0; position:relative; min-height:350px; background:#000;">
+            <div class="scanner-video-container">
+              <video id="qr-video" playsinline muted></video>
+              <div class="scanner-overlay"></div>
+              <div id="scanner-flash" class="scanner-flash"></div>
+            </div>
+            <div class="scanner-hint" style="position:absolute; bottom:1rem; left:0; right:0; z-index:10; background:rgba(0,0,0,0.6); margin:0 1rem; border-radius:var(--radius-md);">
+                Apunta al código del producto para filtrarlo
+            </div>
+        </div>
+        <div class="modal-footer" style="padding:1rem;">
+            <button class="btn btn-primary btn-sm" onclick="closeQrScanner()">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="js/api.js?v=3"></script>
+<script src="js/products.js?v=3"></script>
+</body>
+</html>

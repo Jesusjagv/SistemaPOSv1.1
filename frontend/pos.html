@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS — Punto de Venta</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/pos.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="js/theme.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
+  <link rel="apple-touch-icon" href="img/icon.svg">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     APP SHELL
+════════════════════════════════════════════════════ -->
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="pos-shell">
+
+  <!-- Header -->
+  <header class="app-header">
+    <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+
+    <div class="app-logo">
+      <div class="logo-icon">🏪</div>
+      <span>POS Venezuela</span>
+    </div>
+
+    <!-- BCV Rate Badge -->
+    <div class="bcv-badge" id="bcv-badge" title="Tasa BCV oficial del día" onclick="forceRateUpdate()">
+      <span class="bcv-flag">🇻🇪</span>
+      <span>BCV:</span>
+      <span class="bcv-rate">1$ = <strong id="bcv-rate">--</strong> Bs</span>
+      <div class="bcv-pulse" title="Tasa actualizada"></div>
+    </div>
+
+    <span id="clock" style="font-size:0.78rem;color:var(--text-muted);"></span>
+
+    <div class="header-spacer"></div>
+
+    <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema" style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
+      <i id="theme-icon" class="fa-solid fa-moon"></i>
+    </button>
+
+    <!-- Nav links (Desktop) -->
+    <nav class="header-nav-desktop" style="display:flex;gap:0.25rem;">
+      <a href="/pos.html"       class="nav-item active" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i class="fa-solid fa-cash-register"></i> POS</a>
+      <a href="/products.html"  class="nav-item"        style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i class="fa-solid fa-box"></i> Productos</a>
+      <a href="/customers.html" class="nav-item"        style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i class="fa-solid fa-users"></i> Clientes</a>
+      <a href="/reports.html"   class="nav-item"        style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
+    </nav>
+
+    <div class="header-user">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div>
+        <div id="user-name" style="font-weight:600;font-size:0.8rem;"></div>
+        <div class="user-role" id="user-role"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()" title="Cerrar sesión">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Body: Left + Right panels -->
+  <div class="pos-body">
+
+    <!-- ══════════════════════════════
+         LEFT: Product catalog
+    ══════════════════════════════ -->
+    <div class="pos-left">
+      <!-- Search bar -->
+      <div class="pos-search-bar">
+        <div class="search-bar" style="max-width:none;flex:1;">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="product-search" class="search-input" placeholder="Buscar por nombre o código..." autocomplete="off">
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="clearSearch()" title="Limpiar búsqueda">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Category filter -->
+      <div class="cat-bar" id="cat-bar">
+        <button class="cat-btn active" data-cat="" onclick="filterCategory(this, '')">
+          <i class="fa-solid fa-border-all"></i> Todos
+        </button>
+        <!-- Dynamic categories injected here -->
+      </div>
+
+      <!-- Products grid -->
+      <div class="products-grid" id="products-grid">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <span>Cargando productos...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         RIGHT: Cart
+    ══════════════════════════════ -->
+    <div class="pos-right">
+      <!-- Cart header -->
+      <div class="cart-header">
+        <div class="cart-title">
+          <i class="fa-solid fa-cart-shopping" style="color:var(--violet-light);"></i>
+          Carrito
+          <span class="cart-count" id="cart-count">0</span>
+        </div>
+        <div style="display:flex;gap:0.35rem;">
+          <button class="btn btn-primary btn-sm" onclick="openQrScanner()" title="Escanear Código de Barras">
+            <i class="fa-solid fa-barcode"></i>
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="clearCart()" id="clear-cart-btn" title="Vaciar carrito" disabled>
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Customer -->
+      <div class="cart-customer">
+        <div class="customer-select-btn" id="customer-btn" onclick="openCustomerSearch()">
+          <i class="fa-solid fa-user" style="color:var(--text-muted);"></i>
+          <span id="customer-display">Consumidor Final</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="clear-customer-btn" onclick="clearCustomer()" title="Quitar cliente" style="display:none;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Cart items -->
+      <div class="cart-items" id="cart-items">
+        <div class="cart-empty">
+          <i class="fa-solid fa-cart-shopping"></i>
+          <span>Carrito vacío</span>
+          <span style="font-size:0.72rem;">Agrega productos haciendo clic</span>
+        </div>
+      </div>
+
+      <!-- Order discount -->
+      <div class="cart-totals" id="cart-totals" style="display:none;">
+        <div class="order-disc-row">
+          <i class="fa-solid fa-tag" style="color:var(--amber);"></i>
+          <span>Descuento orden:</span>
+          <input type="number" id="order-discount" class="order-disc-input" value="0" min="0" max="100" step="0.5" oninput="recalcTotals()">
+          <span>%</span>
+        </div>
+        <div class="order-disc-row" id="iva-control-row" style="margin-top:0.5rem;display:none;">
+          <i class="fa-solid fa-building-columns" style="color:#fb7185;"></i>
+          <span style="display:flex;align-items:center;gap:0.3rem;">
+            IVA:
+            <label class="switch" style="font-size:0.6rem;display:flex;align-items:center;">
+              <input type="checkbox" id="iva-toggle" checked onchange="toggleIvaInput()">
+              <span style="margin-left:0.3rem;">Activo</span>
+            </label>
+          </span>
+          <input type="number" id="iva-pct" class="order-disc-input" value="16" min="0" max="100" step="1" oninput="recalcTotals()">
+          <span>%</span>
+        </div>
+        <div class="divider"></div>
+        <div class="total-row">
+          <span class="label">Subtotal:</span>
+          <div class="price-dual" style="text-align:right;">
+            <span class="price-usd" id="t-subtotal-usd">0.00</span>
+            <span class="price-bs"  id="t-subtotal-bs">0,00</span>
+          </div>
+        </div>
+        <div class="total-row discount">
+          <span class="label" style="color:var(--amber);">Descuento:</span>
+          <div class="price-dual" style="text-align:right;">
+            <span id="t-discount-usd" style="color:var(--amber);font-weight:700;font-size:0.85rem;">- $0.00</span>
+            <span id="t-discount-bs"  style="color:var(--amber);font-size:0.7rem;font-weight:500;">- Bs 0,00</span>
+          </div>
+        </div>
+        <div class="total-row tax" id="tax-row">
+          <span class="label" id="tax-label" style="color:#fb7185;">IVA (16%):</span>
+          <div class="price-dual" style="text-align:right;">
+            <span id="t-tax-usd" style="color:#fb7185;font-weight:700;font-size:0.85rem;"></span>
+            <span id="t-tax-bs"  style="color:#fb7185;font-size:0.7rem;font-weight:500;"></span>
+          </div>
+        </div>
+        <div class="total-row grand">
+          <span class="label">TOTAL:</span>
+          <div style="text-align:right;">
+            <div class="total-grand-usd" id="t-total-usd">$0.00</div>
+            <div class="total-grand-bs"  id="t-total-bs">Bs 0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment section -->
+      <div class="cart-payment" id="cart-payment" style="display:none;">
+        <div class="payment-label">Método de pago</div>
+        <div class="payment-methods">
+          <button class="pay-method-btn active" data-method="cash_usd" onclick="selectPayMethod(this)">
+            <i class="fa-solid fa-dollar-sign" style="color:var(--usd-color);"></i>
+            Efectivo $
+          </button>
+          <button class="pay-method-btn" data-method="cash_bs" onclick="selectPayMethod(this)">
+            <i class="fa-solid fa-bolivar-sign" style="color:var(--bs-color);"></i>
+            Efectivo Bs
+          </button>
+          <button class="pay-method-btn" data-method="card" onclick="selectPayMethod(this)">
+            <i class="fa-solid fa-credit-card" style="color:var(--sky);"></i>
+            Tarjeta
+          </button>
+          <button class="pay-method-btn" data-method="mixed" onclick="selectPayMethod(this)">
+            <i class="fa-solid fa-shuffle" style="color:var(--amber);"></i>
+            Mixto
+          </button>
+        </div>
+
+        <!-- Payment inputs -->
+        <div class="payment-inputs" id="payment-inputs">
+          <div class="pay-input-group" id="usd-pay-row">
+            <span class="pay-input-label">$ USD:</span>
+            <input type="number" id="pay-usd" class="pay-input usd-input" placeholder="0.00" min="0" step="0.01" oninput="calcChange()">
+          </div>
+          <div class="pay-input-group" id="bs-pay-row" style="display:none;">
+            <span class="pay-input-label">Bs:</span>
+            <input type="number" id="pay-bs" class="pay-input bs-input" placeholder="0.00" min="0" step="0.1" oninput="calcChange()">
+          </div>
+        </div>
+
+        <!-- Change display -->
+        <div class="pay-change" id="change-display" style="margin-bottom:0.5rem;display:none;">
+          Vuelto: <span id="change-usd-display" style="color:var(--usd-color);margin-right:0.5rem;"></span>
+          <span id="change-bs-display" style="color:var(--bs-color);font-size:0.7rem;"></span>
+        </div>
+
+        <!-- Charge button -->
+        <button class="btn-charge" id="charge-btn" onclick="processSale()" disabled>
+          <i class="fa-solid fa-check-circle"></i>
+          COBRAR
+        </button>
+      </div>
+    </div>
+  </div><!-- /.pos-body -->
+
+  <!-- Mobile Bottom Nav -->
+  <div class="pos-mobile-nav">
+    <button class="active" onclick="switchPosView('products')">
+      <i class="fa-solid fa-box"></i>
+      <span>Productos</span>
+    </button>
+    <button onclick="switchPosView('cart')">
+      <i class="fa-solid fa-cart-shopping"></i>
+      <span>Carrito</span>
+    </button>
+  </div>
+</div><!-- /.pos-shell -->
+
+<!-- Sidebar (Drawer on mobile) -->
+<nav class="app-nav">
+  <span class="nav-section-label">Menú</span>
+  <a href="/pos.html"       class="nav-item active"><i class="fa-solid fa-cash-register"></i> Punto de Venta</a>
+  <a href="/products.html"  class="nav-item"><i class="fa-solid fa-box"></i> Productos</a>
+  <a href="/customers.html" class="nav-item"><i class="fa-solid fa-users"></i> Clientes</a>
+  <a href="/reports.html"   class="nav-item"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
+  <div class="nav-bottom">
+    <button class="nav-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL: Customer Search
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="customer-modal" onclick="closeOnOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-barcode" style="color:var(--violet-light);"></i> Buscar Producto por Código de Barras</div>
+      <button class="btn-close" onclick="closeModal('customer-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="search-bar" style="max-width:none;">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="cust-search-input" class="search-input" placeholder="Buscar cliente por nombre, CI/RIF..." oninput="searchCustomers(this.value)">
+      </div>
+      <div id="customer-results" style="max-height:300px;overflow-y:auto;">
+        <div class="empty-state">
+          <i class="fa-solid fa-user-slash"></i>
+          <p>Escribe para buscar clientes</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="clearCustomer();closeModal('customer-modal')">Consumidor Final</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL: Receipt
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="receipt-modal" onclick="closeOnOverlayClick(event)">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-receipt" style="color:var(--emerald);"></i> Comprobante de Venta</div>
+      <button class="btn-close" onclick="closeModal('receipt-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding:1rem;">
+      <div id="receipt-content"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir</button>
+      <button class="btn btn-primary" onclick="newSale()"><i class="fa-solid fa-plus"></i> Nueva Venta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL: QR Scanner
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="qr-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-barcode"></i> Escanear Código de Barras</div>
+      <button class="btn-close" onclick="closeQrScanner()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding:0; position:relative; min-height:350px; background:#000;">
+      <div class="scanner-video-container">
+        <video id="qr-video" playsinline muted></video>
+        <div class="scanner-overlay"></div>
+        <div id="scanner-flash" class="scanner-flash"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qr-scanner/qr-scanner.umd.min.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/pos.js"></script>
+</body>
+</html>
