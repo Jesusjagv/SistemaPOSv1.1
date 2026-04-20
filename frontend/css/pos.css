@@ -13,9 +13,44 @@
 
 .pos-body {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr auto var(--cart-width, 400px);
   overflow: hidden;
   height: calc(100vh - var(--header-h));
+  position: relative;
+}
+
+/* ── Resizer Bar ──────────────────────────────── */
+.pos-resizer {
+  width: 8px;
+  background: var(--bg-secondary);
+  cursor: col-resize;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  position: relative;
+  transition: background 0.2s;
+  z-index: 10;
+}
+
+.pos-resizer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 30px;
+  background: var(--border);
+  border-radius: var(--radius-full);
+}
+
+.pos-resizer:hover, .pos-resizer.dragging {
+  background: var(--violet-glow);
+}
+
+.pos-resizer:hover::after, .pos-resizer.dragging::after {
+  background: var(--violet);
+  height: 50px;
+  width: 3px;
 }
 
 /* ── Left Panel: Products ─────────────────────── */
@@ -638,6 +673,8 @@
     display: grid;
     padding: 0 10%; /* Centrar un poco más los botones */
   }
+
+  .pos-resizer { display: none; }
 }
 
 @media (max-width: 480px) {

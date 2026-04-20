@@ -38,6 +38,7 @@ async function init() {
 
     renderCategories();
     renderProducts(allProducts);
+    initResizer(); // Inicializar divisor ajustable
   } catch (e) {
     showToast(e.message, 'error');
     document.getElementById('products-grid').innerHTML =
@@ -746,4 +747,50 @@ function onScanSuccess(decodedText) {
   } else {
     showToast(`Producto no encontrado: ${decodedText}`, 'warning');
   }
+}
+
+/* ── Resizable Sidebar Logic ───────────────────────────── */
+function initResizer() {
+  const resizer = document.getElementById('pos-resizer');
+  const body = document.querySelector('.pos-body');
+  
+  if (!resizer || !body) return;
+
+  // Cargar ancho guardado
+  const savedWidth = localStorage.getItem('pos_cart_width');
+  if (savedWidth) {
+    body.style.setProperty('--cart-width', savedWidth);
+  }
+
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    document.body.style.cursor = 'col-resize';
+    resizer.classList.add('dragging');
+
+    const onMouseMove = (e) => {
+      // Calcular ancho desde la derecha de la pantalla
+      let newWidth = window.innerWidth - e.clientX;
+      
+      // Límites de seguridad
+      const minWidth = 320;
+      const maxWidth = window.innerWidth * 0.7;
+
+      if (newWidth < minWidth) newWidth = minWidth;
+      if (newWidth > maxWidth) newWidth = maxWidth;
+
+      const finalWidth = `${newWidth}px`;
+      body.style.setProperty('--cart-width', finalWidth);
+      localStorage.setItem('pos_cart_width', finalWidth);
+    };
+
+    const onMouseUp = () => {
+      document.body.style.cursor = '';
+      resizer.classList.remove('dragging');
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  });
 }

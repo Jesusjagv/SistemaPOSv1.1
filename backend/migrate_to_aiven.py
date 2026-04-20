@@ -3,7 +3,7 @@ from database import init_db
 import pymysql
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv('.env.example')
 
 # Source (local) DB connection parameters (hard‑coded as they were before migration)
 SRC_HOST = 'localhost'
@@ -34,7 +34,15 @@ def get_target_conn():
     host = parsed.hostname
     port = parsed.port or 3306
     db = parsed.path.lstrip('/')
-    ssl_params = {'ssl': {'ca': None}} if 'ssl-mode=REQUIRED' in db_url else None
+    # SSL mode handling (Aiven requires SSL)
+    ssl_params = None
+    if 'ssl-mode=REQUIRED' in db_url:
+        ssl_params = {
+            'ssl': {
+                'ca': None,
+                'check_hostname': False
+            }
+        }
     return pymysql.connect(
         host=host,
         port=port,
@@ -64,13 +72,13 @@ def migrate():
     for tbl in TABLES:
         tgt_cur.execute(f'TRUNCATE TABLE {tbl};')
     tgt_cur.execute('SET FOREIGN_KEY_CHECKS = 1;')
-    print('✅ Target tables truncated')
+    print('Tablas en Aiven preparadas')
 
     for tbl in TABLES:
         src_cur.execute(f'SELECT * FROM {tbl};')
         rows = src_cur.fetchall()
         if not rows:
-            print(f'⏭️  Table {tbl} empty – skipping')
+            print(f'Table {tbl} empty - skipping')
             continue
         cols = rows[0].keys()
         cols_str = ', '.join(cols)
@@ -78,11 +86,11 @@ def migrate():
         insert_sql = f'INSERT INTO {tbl} ({cols_str}) VALUES ({placeholders});'
         data = [tuple(row[col] for col in cols) for row in rows]
         tgt_cur.executemany(insert_sql, data)
-        print(f'✅ Migrated {len(data)} rows into {tbl}')
+        print(f'Migrated {len(data)} rows into {tbl}')
 
     src.close()
     tgt.close()
-    print('🎉 Migration to Aiven completed')
+    print('Migration to Aiven completed')
 
 if __name__ == '__main__':
     migrate()

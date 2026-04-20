@@ -3,7 +3,7 @@ import os
 from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
 import urllib.parse
-load_dotenv()
+load_dotenv('.env.example')
 # Connection parameters will be loaded from DATABASE_URL environment variable
 
 class DBWrapper:
@@ -43,7 +43,14 @@ def get_db():
     db_port = parsed.port or 3306
     db_name = parsed.path.lstrip('/')
     # SSL mode handling (Aiven requires SSL)
-    ssl_params = {'ssl': {'ca': None}} if 'ssl-mode=REQUIRED' in db_url else None
+    ssl_params = None
+    if 'ssl-mode=REQUIRED' in db_url:
+        ssl_params = {
+            'ssl': {
+                'ca': None,
+                'check_hostname': False # Necessary for some Aiven setups if CA is not provided
+            }
+        }
     conn = pymysql.connect(
         host=db_host,
         port=db_port,
@@ -219,6 +226,6 @@ def init_db():
         )
 
     conn.close()
-    print("✅ Base de datos inicializada correctamente")
-    print("   👤 Admin:  usuario='admin'  | contraseña='admin123'")
-    print("   👤 Cajero: usuario='cajero' | contraseña='cajero123'")
+    print("Base de datos inicializada correctamente")
+    print("   User Admin:  usuario='admin'  | contrasena='admin123'")
+    print("   User Cajero: usuario='cajero' | contrasena='cajero123'")

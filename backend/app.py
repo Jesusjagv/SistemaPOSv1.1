@@ -59,10 +59,21 @@ def serve_static(path):
         return send_from_directory(FRONTEND_DIR, path)
     return send_from_directory(FRONTEND_DIR, 'index.html')
 
+@app.after_request
+def add_header(response):
+    """
+    Inyectar cabeceras para evitar caché en archivos estáticos durante desarrollo.
+    """
+    if 'Cache-Control' not in response.headers:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 if __name__ == '__main__':
     print("=" * 55)
-    print("   🏪  SISTEMA POS v1.0 — Venezuela")
+    print("   SISTEMA POS v1.0 - Venezuela")
     print("=" * 55)
     init_db()
-    print(f"\n🌐 Abre tu navegador en: http://localhost:5000\n")
+    print(f"\n   Abre tu navegador en: http://localhost:5000\n")
     app.run(debug=True, host='0.0.0.0', port=5000)

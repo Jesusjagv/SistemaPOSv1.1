@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-vzla-cache-v1';
+const CACHE_NAME = 'pos-vzla-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -49,9 +49,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // Estrategia: Network First (Red primero, luego caché)
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    fetch(event.request)
+      .then((response) => {
+        // Si la red responde, clonamos y guardamos en caché
+        const resClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, resClone);
+        });
+        return response;
+      })
+      .catch(() => {
+        // Si falla la red, buscamos en el caché
+        return caches.match(event.request);
+      })
   );
 });
