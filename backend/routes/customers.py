@@ -47,7 +47,6 @@ def create_customer():
     doc_type   = data.get('doc_type', 'V')
     doc_number = data.get('doc_number', '').strip() or None
     phone      = data.get('phone', '').strip() or None
-    email      = data.get('email', '').strip() or None
     address    = data.get('address', '').strip() or None
 
     if not name:
@@ -55,8 +54,8 @@ def create_customer():
 
     conn = get_db()
     cursor = conn.execute(
-        "INSERT INTO customers (name, doc_type, doc_number, phone, email, address) VALUES (%s,%s,%s,%s,%s,%s)",
-        (name, doc_type, doc_number, phone, email, address)
+        "INSERT INTO customers (name, doc_type, doc_number, phone, address) VALUES (%s,%s,%s,%s,%s)",
+        (name, doc_type, doc_number, phone, address)
     )
     conn.commit()
     new_id = cursor.lastrowid
@@ -69,11 +68,11 @@ def update_customer(cid):
     data = request.get_json()
     conn = get_db()
     conn.execute(
-        "UPDATE customers SET name=%s, doc_type=%s, doc_number=%s, phone=%s, email=%s, address=%s WHERE id=%s",
+        "UPDATE customers SET name=%s, doc_type=%s, doc_number=%s, phone=%s, address=%s WHERE id=%s",
         (
             data.get('name'), data.get('doc_type', 'V'),
             data.get('doc_number') or None, data.get('phone') or None,
-            data.get('email') or None, data.get('address') or None, cid
+            data.get('address') or None, cid
         )
     )
     conn.commit()

@@ -13,7 +13,7 @@
   grid-template-columns: 1fr 1fr 1fr;
   gap: 1.25rem;
 }
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .content-grid-2, .content-grid-3 { grid-template-columns: 1fr; }
 }
 
@@ -194,3 +194,50 @@
 }
 .page-tab:hover { color: var(--text-secondary); }
 .page-tab.active { color: var(--violet-light); border-bottom-color: var(--violet); }
+
+/* ── Dashboard Responsive ────────────────────────── */
+@media (max-width: 768px) {
+  .customer-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .metric-card {
+    padding: 1rem;
+  }
+  .metric-value {
+    font-size: 1.3rem;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filters-bar > * {
+    width: 100%;
+  }
+
+  .period-tabs {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-card {
+    padding: 0.85rem;
+  }
+
+  .metric-card {
+    padding: 0.85rem;
+  }
+  .metric-value {
+    font-size: 1.1rem;
+  }
+  .metric-label {
+    font-size: 0.7rem;
+  }
+}

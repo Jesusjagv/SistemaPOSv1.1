@@ -214,6 +214,10 @@
             <i class="fa-solid fa-credit-card" style="color:var(--sky);"></i>
             Tarjeta
           </button>
+          <button class="pay-method-btn" data-method="pago_movil" onclick="selectPayMethod(this)">
+            <i class="fa-solid fa-mobile-screen" style="color:var(--violet-light);"></i>
+            Pago Móvil
+          </button>
           <button class="pay-method-btn" data-method="mixed" onclick="selectPayMethod(this)">
             <i class="fa-solid fa-shuffle" style="color:var(--amber);"></i>
             Mixto
@@ -230,13 +234,13 @@
             <span class="pay-input-label">Bs:</span>
             <input type="number" id="pay-bs" class="pay-input bs-input" placeholder="0.00" min="0" step="0.1" oninput="calcChange()">
           </div>
+          <div class="pay-input-group" id="ref-pay-row" style="display:none;">
+            <span class="pay-input-label">Ref #:</span>
+            <input type="text" id="pay-ref" class="pay-input" placeholder="Ej. 12345" style="border:1px solid var(--border);border-radius:var(--radius-md);padding:0.75rem 1rem;font-size:0.9rem;font-weight:600;width:100%;outline:none;background:var(--bg-card);color:var(--text-primary);transition:border-color 0.2s;">
+          </div>
         </div>
 
-        <!-- Change display -->
-        <div class="pay-change" id="change-display" style="margin-bottom:0.5rem;display:none;">
-          Vuelto: <span id="change-usd-display" style="color:var(--usd-color);margin-right:0.5rem;"></span>
-          <span id="change-bs-display" style="color:var(--bs-color);font-size:0.7rem;"></span>
-        </div>
+
 
         <!-- Charge button -->
         <button class="btn-charge" id="charge-btn" onclick="processSale()" disabled>

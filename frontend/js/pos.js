@@ -316,7 +316,7 @@ function selectPayMethod(btn) {
   usdRow.style.display = 'flex';
   bsRow.style.display  = 'none';
 
-  if (payMethod === 'cash_bs') {
+  if (payMethod === 'cash_bs' || payMethod === 'pago_movil') {
     usdRow.style.display = 'none';
     bsRow.style.display  = 'flex';
   } else if (payMethod === 'mixed') {
@@ -324,9 +324,18 @@ function selectPayMethod(btn) {
     bsRow.style.display  = 'flex';
   }
 
-  // Auto-fill exact amount for card
+  const refRow = document.getElementById('ref-pay-row');
+  if (payMethod === 'pago_movil') {
+    refRow.style.display = 'flex';
+  } else {
+    refRow.style.display = 'none';
+  }
+
+  // Auto-fill exact amount for card or pago movil
   if (payMethod === 'card') {
     document.getElementById('pay-usd').value = totals.totalUsd ? totals.totalUsd.toFixed(2) : '';
+  } else if (payMethod === 'pago_movil') {
+    document.getElementById('pay-bs').value = totals.totalBs ? totals.totalBs.toFixed(2) : '';
   }
   calcChange();
 }
@@ -338,19 +347,7 @@ function calcChange() {
   const paidBs  = parseFloat(document.getElementById('pay-bs').value)  || 0;
 
   const totalPaidUsd = paidUsd + (paidBs / rate);
-  const changeUsd    = Math.max(0, totalPaidUsd - totals.totalUsd);
-  const changeBs     = changeUsd * rate;
-
-  const changeDisplay = document.getElementById('change-display');
   const enoughPaid    = totalPaidUsd >= (totals.totalUsd - 0.001);
-
-  if ((paidUsd > 0 || paidBs > 0) && enoughPaid) {
-    changeDisplay.style.display = 'block';
-    document.getElementById('change-usd-display').textContent = fmtUSD(changeUsd);
-    document.getElementById('change-bs-display').textContent  = fmtBS(changeBs);
-  } else {
-    changeDisplay.style.display = 'none';
-  }
 
   document.getElementById('charge-btn').disabled = !enoughPaid || cart.length === 0;
 }
@@ -419,6 +416,10 @@ async function processSale() {
   const paidUsd = parseFloat(document.getElementById('pay-usd').value) || 0;
   const paidBs  = parseFloat(document.getElementById('pay-bs').value)  || 0;
   const discPct = parseFloat(document.getElementById('order-discount').value) || 0;
+  let   payRef  = document.getElementById('pay-ref').value.trim();
+
+  // Guardar la referencia en "notes"
+  const notesText = (payMethod === 'pago_movil' && payRef) ? `Ref PM: ${payRef}` : '';
 
   const saleData = {
     items: cart.map(i => ({
@@ -434,6 +435,7 @@ async function processSale() {
     amount_paid_bs:   paidBs,
     discount_percent: discPct,
     tax_percent:      document.getElementById('iva-toggle').checked ? (parseFloat(document.getElementById('iva-pct').value)||0) : 0,
+    notes:            notesText
   };
 
   try {
@@ -466,6 +468,7 @@ function showReceipt(sale, result) {
     cash_usd: 'Efectivo USD',
     cash_bs:  'Efectivo Bs',
     card:     'Tarjeta de Débito/Crédito',
+    pago_movil: 'Pago Móvil',
     mixed:    'Pago Mixto'
   };
 
@@ -515,16 +518,10 @@ function showReceipt(sale, result) {
     </div>
     <hr class="receipt-hr">
     <div class="receipt-row"><span>Método pago:</span><span>${methodLabels[sale.payment_method] || sale.payment_method}</span></div>
+    ${sale.notes && sale.notes.includes('Ref PM') ? `<div class="receipt-row"><span style="font-size:0.75rem;">Operación:</span><span style="font-size:0.75rem;font-weight:600;">${sale.notes.replace('Ref PM: ', '')}</span></div>` : ''}
     ${paidUsd > 0 ? `<div class="receipt-row"><span>Pago $:</span><span style="color:var(--usd-color);">${fmtUSD(paidUsd)}</span></div>`:''}
     ${paidBs > 0  ? `<div class="receipt-row"><span>Pago Bs:</span><span style="color:var(--bs-color);">${fmtBS(paidBs)}</span></div>`:''}
-    ${sale.change_usd > 0 ? `
-    <div class="receipt-row" style="color:var(--emerald-light);font-weight:700;">
-      <span>VUELTO:</span>
-      <div style="text-align:right;">
-        <div>${fmtUSD(sale.change_usd)}</div>
-        <div style="font-size:0.73rem;color:var(--bs-color);">${fmtBS(sale.change_bs)}</div>
-      </div>
-    </div>` : ''}
+
     <hr class="receipt-hr">
     <div class="receipt-center" style="color:var(--text-muted);font-size:0.7rem;">
       <div>¡Gracias por su compra!</div>
@@ -548,6 +545,7 @@ function newSale() {
   document.getElementById('iva-pct').disabled = false;
   document.getElementById('pay-usd').value = '';
   document.getElementById('pay-bs').value  = '';
+  document.getElementById('pay-ref').value = '';
   document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('[data-method="cash_usd"]').classList.add('active');
   document.getElementById('bs-pay-row').style.display = 'none';

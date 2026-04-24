@@ -46,7 +46,6 @@ function renderCustomers(list) {
       <div class="customer-card-doc">${c.doc_type}-${c.doc_number || 'S/N'}</div>
       <div class="customer-card-info">
         ${c.phone   ? `<div><i class="fa-solid fa-phone"></i> ${c.phone}</div>` : ''}
-        ${c.email   ? `<div><i class="fa-solid fa-envelope"></i> ${c.email}</div>` : ''}
         ${c.address ? `<div><i class="fa-solid fa-location-dot"></i> ${c.address}</div>` : ''}
       </div>
       <div style="display:flex;gap:0.35rem;margin-top:0.75rem;" onclick="event.stopPropagation()">
@@ -62,7 +61,7 @@ function renderCustomers(list) {
 
 /* ── Modal ──────────────────────────────────────────────── */
 function openCustomerModal(customerId = null) {
-  ['cust-id','cust-name','cust-docnum','cust-phone','cust-email','cust-address'].forEach(id => {
+  ['cust-id','cust-name','cust-docnum','cust-phone','cust-address'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('cust-doctype').value = 'V';
@@ -76,7 +75,6 @@ function openCustomerModal(customerId = null) {
     document.getElementById('cust-doctype').value = c.doc_type || 'V';
     document.getElementById('cust-docnum').value  = c.doc_number || '';
     document.getElementById('cust-phone').value   = c.phone || '';
-    document.getElementById('cust-email').value   = c.email || '';
     document.getElementById('cust-address').value = c.address || '';
   } else {
     document.getElementById('modal-cust-title').innerHTML = '<i class="fa-solid fa-user-plus" style="color:var(--violet-light);"></i> Nuevo Cliente';
@@ -94,7 +92,6 @@ async function saveCustomer() {
     doc_type:   document.getElementById('cust-doctype').value,
     doc_number: document.getElementById('cust-docnum').value.trim() || null,
     phone:      document.getElementById('cust-phone').value.trim() || null,
-    email:      document.getElementById('cust-email').value.trim() || null,
     address:    document.getElementById('cust-address').value.trim() || null,
   };
   try {
@@ -138,7 +135,6 @@ async function openDetail(id) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.82rem;margin-bottom:1rem;">
         ${c.phone   ? `<div><b>Teléfono:</b> ${c.phone}</div>` : ''}
-        ${c.email   ? `<div><b>Email:</b> ${c.email}</div>` : ''}
         ${c.address ? `<div style="grid-column:1/-1;"><b>Dirección:</b> ${c.address}</div>` : ''}
       </div>
       <div style="font-weight:600;margin-bottom:0.5rem;">Últimas compras</div>

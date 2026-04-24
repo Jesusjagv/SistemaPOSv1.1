@@ -150,6 +150,7 @@ function renderPaymentChart(data) {
     cash_usd: 'Efectivo $',
     cash_bs:  'Efectivo Bs',
     card:     'Tarjeta',
+    pago_movil: 'Pago Móvil',
     mixed:    'Mixto'
   };
   const labels  = data.map(d => methodLabels[d.payment_method] || d.payment_method);
@@ -187,7 +188,7 @@ function renderSalesHistory(sales) {
     tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="fa-solid fa-receipt"></i><p>Sin ventas en el período</p></div></td></tr>`;
     return;
   }
-  const methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', mixed:'Mixto' };
+  const methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', pago_movil:'Pago Móvil', mixed:'Mixto' };
   tbody.innerHTML = sales.map(s => `
     <tr>
       <td style="font-family:monospace;font-size:0.78rem;color:var(--violet-light);">${s.sale_number}</td>
@@ -206,7 +207,7 @@ function renderSalesHistory(sales) {
 function downloadSalesCSV() {
   if (!currentSalesData.length) return;
 
-  const methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', mixed:'Mixto' };
+  const methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', pago_movil:'Pago Móvil', mixed:'Mixto' };
   
   // Encabezados
   let csvRows = [
