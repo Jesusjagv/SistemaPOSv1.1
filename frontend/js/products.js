@@ -410,7 +410,7 @@ function onScanSuccess(decodedText) {
   lastScannedCode = code;
   lastScanTime = now;
 
-  console.log("Nimiq QR Detectado (Filtro):", code);
+  console.log("QR/Barcode Detectado (Registro):", code);
   
   // Efecto visual de flash
   const flash = document.getElementById('scanner-flash');
@@ -419,11 +419,25 @@ function onScanSuccess(decodedText) {
     setTimeout(() => flash.classList.remove('active'), 300);
   }
 
-  // Colocar en el buscador y filtrar
-  const searchInput = document.getElementById('search-input');
-  if (searchInput) {
-    searchInput.value = code;
-    filterProducts(code);
-    showToast(`Buscando código: ${code}`, 'success');
-  }
+  showToast(`Código escaneado: ${code}`, 'success');
+
+  // Cerrar el escáner y abrir registro
+  closeQrScanner().then(() => {
+    // Abrir modal de nuevo producto
+    openProductModal();
+    
+    // Asignar el código al input
+    const codeInput = document.getElementById('prod-code');
+    if (codeInput) {
+      codeInput.value = code;
+    }
+    
+    // Auto-enfocar el campo del nombre del producto
+    setTimeout(() => {
+      const nameInput = document.getElementById('prod-name');
+      if (nameInput) {
+        nameInput.focus();
+      }
+    }, 300); // Retraso para asegurar que el modal ya es visible
+  });
 }

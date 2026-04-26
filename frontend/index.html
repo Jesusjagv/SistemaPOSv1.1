@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,13 +13,14 @@
   <meta name="theme-color" content="#8b5cf6">
   <link rel="apple-touch-icon" href="img/icon.svg">
 </head>
+
 <body>
   <div class="login-page">
     <!-- Background orbs -->
     <div class="login-bg-orb login-bg-orb-1"></div>
     <div class="login-bg-orb login-bg-orb-2"></div>
-    
-    <button class="btn btn-ghost" onclick="toggleTheme()" 
+
+    <button class="btn btn-ghost" onclick="toggleTheme()"
       style="position:absolute;top:1rem;right:1rem;z-index:10;border-radius:50%;width:40px;height:40px;padding:0;">
       <i id="theme-icon" class="fa-solid fa-moon"></i>
     </button>
@@ -27,8 +29,8 @@
       <!-- Logo -->
       <div class="login-logo">
         <div class="logo-box">🏪</div>
-        <h1>Sistema POS v1.0</h1>
-        <p>Venezuela &bull; IVA 16% &bull; USD / Bs BCV</p>
+        <h1>Sistema POS</h1>
+        <!--<p>Venezuela &bull; IVA 16% &bull; USD / Bs BCV</p>-->
       </div>
 
       <!-- Error message -->
@@ -43,15 +45,8 @@
           <label class="form-label" for="username">
             <i class="fa-solid fa-user"></i> Usuario
           </label>
-          <input
-            id="username"
-            name="username"
-            type="text"
-            class="form-control"
-            placeholder="Ingresa tu usuario"
-            autocomplete="username"
-            required
-          >
+          <input id="username" name="username" type="text" class="form-control" placeholder="Ingresa tu usuario"
+            autocomplete="username" required>
         </div>
 
         <div class="form-group">
@@ -59,16 +54,9 @@
             <i class="fa-solid fa-lock"></i> Contraseña
           </label>
           <div style="position:relative;">
-            <input
-              id="password"
-              name="password"
-              type="password"
-              class="form-control"
-              placeholder="Ingresa tu contraseña"
-              autocomplete="current-password"
-              required
-              style="padding-right:2.5rem;"
-            >
+            <input id="password" name="password" type="password" class="form-control"
+              placeholder="Ingresa tu contraseña" autocomplete="current-password" required
+              style="padding-right:2.5rem;">
             <button type="button" id="toggle-pwd"
               style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.9rem;">
               <i class="fa-solid fa-eye"></i>
@@ -86,8 +74,8 @@
       <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);text-align:center;">
         <p style="font-size:0.72rem;color:var(--text-muted);">
           <i class="fa-solid fa-shield-halved" style="color:var(--violet-light);"></i>
-          Usuarios por defecto: <code style="color:var(--violet-light);">admin/admin123</code>
-          &nbsp;|&nbsp; <code style="color:var(--emerald);">cajero/cajero123</code>
+          <!-- Usuarios por defecto: <code style="color:var(--violet-light);">admin/admin123</code>-->
+          <!-- &nbsp;|&nbsp; <code style="color:var(--emerald);">cajero/cajero123</code> -->
         </p>
       </div>
     </div>
@@ -100,9 +88,9 @@
     // Redirect if already logged in
     if (isLoggedIn()) window.location.href = '/pos.html';
 
-    const form     = document.getElementById('login-form');
-    const errBox   = document.getElementById('login-error');
-    const errMsg   = document.getElementById('login-error-msg');
+    const form = document.getElementById('login-form');
+    const errBox = document.getElementById('login-error');
+    const errMsg = document.getElementById('login-error-msg');
     const loginBtn = document.getElementById('login-btn');
     const pwdInput = document.getElementById('password');
     const togglePwd = document.getElementById('toggle-pwd');
@@ -143,4 +131,5 @@
     });
   </script>
 </body>
+
 </html>

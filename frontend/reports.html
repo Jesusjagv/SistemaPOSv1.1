@@ -117,12 +117,56 @@
       </div>
       <div class="table-wrapper" style="border:none;border-radius:0;">
         <table>
-          <thead><tr><th>Factura</th><th>Cliente</th><th>Cajero</th><th>Método</th><th>Total USD</th><th>Total Bs</th><th>Estado</th><th>Fecha</th></tr></thead>
+          <thead><tr><th>Factura</th><th>Cliente</th><th>Cajero</th><th>Método</th><th>Productos</th><th>Total USD</th><th>Total Bs</th><th>Estado</th><th>Fecha</th></tr></thead>
           <tbody id="sales-tbody"><tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Cargando...</td></tr></tbody>
         </table>
       </div>
     </div>
   </main>
+</div>
+
+<!-- Modal: Sale Detail -->
+<div class="modal-overlay hidden" id="sale-detail-modal" onclick="closeOnOverlayClick(event)">
+  <div class="modal" style="width:min(90vw, 700px);">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-receipt" style="color:var(--sky);"></i> Detalle de Venta <span id="sd-number" style="font-size:0.85em;color:var(--text-muted);font-family:monospace;margin-left:0.5rem;"></span></div>
+      <button class="btn-close" onclick="closeModal('sale-detail-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;margin-bottom:1rem;font-size:0.85rem;">
+        <div>
+          <div><strong>Cliente:</strong> <span id="sd-customer"></span></div>
+          <div><strong>Cajero:</strong> <span id="sd-user"></span></div>
+          <div><strong>Fecha:</strong> <span id="sd-date"></span></div>
+        </div>
+        <div style="text-align:right;">
+          <div><strong>Método:</strong> <span id="sd-method" class="badge badge-blue"></span></div>
+          <div style="margin-top:0.25rem;"><strong>Estado:</strong> <span id="sd-status"></span></div>
+        </div>
+      </div>
+      <div class="table-wrapper" style="max-height:250px;overflow-y:auto;margin-bottom:1rem;border-radius:var(--radius-sm);">
+        <table style="margin:0;">
+          <thead style="position:sticky;top:0;z-index:1;"><tr><th>Producto</th><th>Cant.</th><th>Desc.</th><th>Precio Und.</th><th>Total USD</th><th>Total Bs</th></tr></thead>
+          <tbody id="sd-items"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:1.5rem;font-size:0.9rem;">
+        <div style="text-align:right;">
+          <div style="color:var(--text-muted);margin-bottom:0.25rem;">Subtotal:</div>
+          <div style="color:var(--text-muted);margin-bottom:0.25rem;">Descuento Global:</div>
+          <div style="color:var(--text-muted);margin-bottom:0.25rem;">IVA:</div>
+          <strong style="font-size:1.1rem;color:var(--usd-color);">Total:</strong>
+        </div>
+        <div style="text-align:right;">
+          <div id="sd-subtotal" style="margin-bottom:0.25rem;font-family:monospace;"></div>
+          <div id="sd-discount" style="color:#fb7185;margin-bottom:0.25rem;font-family:monospace;"></div>
+          <div id="sd-tax" style="margin-bottom:0.25rem;font-family:monospace;"></div>
+          <strong id="sd-total" style="font-size:1.1rem;color:var(--text-primary);font-family:monospace;"></strong>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;" id="sd-total-bs"></div>
+    </div>
+  </div>
 </div>
 
 <div id="toast-container"></div>

@@ -3,7 +3,7 @@ import os
 from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
 import urllib.parse
-load_dotenv('.env.example')
+load_dotenv()
 # Connection parameters will be loaded from DATABASE_URL environment variable
 
 class DBWrapper:

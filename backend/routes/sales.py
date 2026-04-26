@@ -153,7 +153,8 @@ def list_sales():
     limit     = int(request.args.get('limit', 50))
     conn = get_db()
     rows = conn.execute('''
-        SELECT s.*, u.name as user_name
+        SELECT s.*, u.name as user_name,
+               (SELECT COALESCE(SUM(quantity), 0) FROM sale_items WHERE sale_id = s.id) as total_items
         FROM sales s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE DATE(s.created_at) BETWEEN %s AND %s

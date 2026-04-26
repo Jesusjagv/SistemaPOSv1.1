@@ -3,7 +3,7 @@ from database import init_db
 import pymysql
 from dotenv import load_dotenv
 
-load_dotenv('.env.example')
+load_dotenv()
 
 # Source (local) DB connection parameters (hard‑coded as they were before migration)
 SRC_HOST = 'localhost'

@@ -190,17 +190,64 @@ function renderSalesHistory(sales) {
   }
   const methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', pago_movil:'Pago Móvil', mixed:'Mixto' };
   tbody.innerHTML = sales.map(s => `
-    <tr>
+    <tr style="cursor:pointer;transition:background 0.2s;" onclick="openSaleDetail(${s.id})" onmouseover="this.style.background='rgba(124,58,237,0.05)'" onmouseout="this.style.background=''">
       <td style="font-family:monospace;font-size:0.78rem;color:var(--violet-light);">${s.sale_number}</td>
       <td style="font-size:0.8rem;">${s.customer_name || 'Consumidor Final'}</td>
       <td style="font-size:0.8rem;color:var(--text-muted);">${s.user_name || '—'}</td>
       <td><span class="badge badge-blue">${methodNames[s.payment_method] || s.payment_method}</span></td>
+      <td style="text-align:center;font-weight:600;">${parseFloat(s.total_items || 0)}</td>
       <td><span class="price-usd">${parseFloat(s.total_usd).toFixed(2)}</span></td>
       <td><span class="price-bs" style="font-size:0.72rem;">${parseFloat(s.total_bs).toLocaleString('es-VE',{minimumFractionDigits:2})}</span></td>
       <td><span class="badge ${s.status === 'completed' ? 'badge-green' : 'badge-red'}">${s.status === 'completed' ? 'Completada' : 'Anulada'}</span></td>
       <td style="font-size:0.75rem;color:var(--text-muted);">${new Date(s.created_at).toLocaleString('es-VE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
     </tr>
   `).join('');
+}
+
+/* ── Sale details modal ─────────────────────────────────── */
+async function openSaleDetail(sid) {
+  try {
+    const sale = await api.get(`/sales/${sid}`);
+    const methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', pago_movil:'Pago Móvil', mixed:'Mixto' };
+    
+    document.getElementById('sd-number').textContent = sale.sale_number;
+    document.getElementById('sd-customer').textContent = sale.customer_name || 'Consumidor Final';
+    document.getElementById('sd-user').textContent = sale.user_name || '—';
+    document.getElementById('sd-date').textContent = new Date(sale.created_at).toLocaleString('es-VE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    document.getElementById('sd-method').textContent = methodNames[sale.payment_method] || sale.payment_method;
+    
+    const statusEl = document.getElementById('sd-status');
+    if (sale.status === 'completed') {
+      statusEl.className = 'badge badge-green'; statusEl.textContent = 'Completada';
+    } else {
+      statusEl.className = 'badge badge-red'; statusEl.textContent = 'Anulada';
+    }
+    
+    const tbody = document.getElementById('sd-items');
+    tbody.innerHTML = sale.items.map(i => `
+      <tr>
+        <td style="font-size:0.8rem;font-weight:600;">
+          ${i.product_name}
+          <div style="font-size:0.7rem;color:var(--text-muted);font-family:monospace;">${i.product_code || ''}</div>
+        </td>
+        <td style="text-align:center;font-weight:600;">${i.quantity}</td>
+        <td style="text-align:center;color:var(--text-muted);">${i.discount_percent > 0 ? i.discount_percent + '%' : '—'}</td>
+        <td style="font-family:monospace;color:var(--text-muted);">${fmtUSD(i.price_usd)}</td>
+        <td style="font-family:monospace;font-weight:600;">${fmtUSD(i.total_usd)}</td>
+        <td style="font-family:monospace;font-weight:600;color:var(--bs-color);font-size:0.85rem;">${fmtBS(i.total_bs)}</td>
+      </tr>
+    `).join('');
+    
+    document.getElementById('sd-subtotal').textContent = fmtUSD(sale.subtotal_usd);
+    document.getElementById('sd-discount').textContent = sale.discount_usd > 0 ? '-' + fmtUSD(sale.discount_usd) : '$ 0.00';
+    document.getElementById('sd-tax').textContent = fmtUSD(sale.tax_usd);
+    document.getElementById('sd-total').textContent = fmtUSD(sale.total_usd);
+    document.getElementById('sd-total-bs').innerHTML = `Tasa BCV: ${sale.exchange_rate} Bs/$ &mdash; Total Bs: <strong style="color:var(--bs-color);font-size:0.85rem;">${fmtBS(sale.total_bs)}</strong>`;
+    
+    openModal('sale-detail-modal');
+  } catch (e) {
+    showToast('Error cargando detalles de venta: ' + e.message, 'error');
+  }
 }
 
 /* ── CSV Export ─────────────────────────────────────────── */
@@ -211,7 +258,7 @@ function downloadSalesCSV() {
   
   // Encabezados
   let csvRows = [
-    ['Nro Factura', 'Fecha', 'Cliente', 'Cajero', 'Metodo Pago', 'Total USD', 'Total Bs', 'Impuesto (IVA)', 'Estado'].join(';')
+    ['Nro Factura', 'Fecha', 'Cliente', 'Cajero', 'Metodo Pago', 'Productos', 'Total USD', 'Total Bs', 'Impuesto (IVA)', 'Estado'].join(';')
   ];
 
   // Datos
@@ -222,6 +269,7 @@ function downloadSalesCSV() {
       s.customer_name || 'Consumidor Final',
       s.user_name || '—',
       methodNames[s.payment_method] || s.payment_method,
+      parseFloat(s.total_items || 0),
       s.total_usd.toFixed(2),
       s.total_bs.toFixed(2),
       s.tax_usd.toFixed(2),
