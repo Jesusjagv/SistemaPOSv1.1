@@ -5,6 +5,7 @@ initHeader();
 let dailyChart   = null;
 let paymentChart = null;
 let currentSalesData = []; // Para almacenar las ventas actuales para exportación
+let currentSelectedSale = null; // Para descargar el PDF desde el modal
 
 // Set default date range (today)
 const today = new Date().toISOString().split('T')[0];
@@ -32,8 +33,9 @@ async function loadReports() {
     currentSalesData = sales; // Guardar para exportar
     renderSalesHistory(sales);
     
-    // Activar/desactivar botón de descarga
+    // Activar/desactivar botones de descarga
     document.getElementById('btn-download-sales').disabled = sales.length === 0;
+    document.getElementById('btn-download-detailed').disabled = sales.length === 0;
   } catch (e) {
     showToast(e.message, 'error');
   }
@@ -200,6 +202,11 @@ function renderSalesHistory(sales) {
       <td><span class="price-bs" style="font-size:0.72rem;">${parseFloat(s.total_bs).toLocaleString('es-VE',{minimumFractionDigits:2})}</span></td>
       <td><span class="badge ${s.status === 'completed' ? 'badge-green' : 'badge-red'}">${s.status === 'completed' ? 'Completada' : 'Anulada'}</span></td>
       <td style="font-size:0.75rem;color:var(--text-muted);">${new Date(s.created_at).toLocaleString('es-VE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+      <td style="text-align:center;">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); downloadSaleExcel(${s.id})" title="Descargar Excel" style="color:var(--violet-light);padding:0.25rem 0.5rem;">
+          <i class="fa-solid fa-file-excel"></i>
+        </button>
+      </td>
     </tr>
   `).join('');
 }
@@ -208,7 +215,12 @@ function renderSalesHistory(sales) {
 async function openSaleDetail(sid) {
   try {
     const sale = await api.get(`/sales/${sid}`);
+    currentSelectedSale = sale; // Guardar para el botón de descarga del modal
     const methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', pago_movil:'Pago Móvil', mixed:'Mixto' };
+    
+    // Configurar boton de descarga del modal
+    const modalBtn = document.getElementById('btn-modal-download-excel');
+    modalBtn.onclick = () => downloadSaleExcel(sid, sale);
     
     document.getElementById('sd-number').textContent = sale.sale_number;
     document.getElementById('sd-customer').textContent = sale.customer_name || 'Consumidor Final';
@@ -293,4 +305,117 @@ function downloadSalesCSV() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+/* ── Excel Export (Individual Sale) ───────────────────────── */
+async function downloadSaleExcel(sid, saleData) {
+  try {
+    var sale = saleData || await api.get('/sales/' + sid);
+    var methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', pago_movil:'Pago Movil', mixed:'Mixto' };
+    
+    // Build data rows
+    var data = [
+      ['SISTEMA POS v1.1 - Recibo de Venta'],
+      [],
+      ['Factura No', sale.sale_number],
+      ['Fecha', new Date(sale.created_at).toLocaleString('es-VE')],
+      ['Cajero', sale.user_name || '-'],
+      ['Cliente', sale.customer_name || 'Consumidor Final'],
+      ['Metodo de Pago', methodNames[sale.payment_method] || sale.payment_method],
+      ['Estado', sale.status === 'completed' ? 'Completada' : 'Anulada'],
+      ['Tasa BCV', '1$ = ' + parseFloat(sale.exchange_rate).toFixed(2) + ' Bs'],
+      [],
+      ['--- PRODUCTOS ---'],
+      ['Producto', 'Codigo', 'Cantidad', 'Precio Unit $', 'Descuento %', 'Total USD', 'Total Bs']
+    ];
+    
+    sale.items.forEach(function(item) {
+      data.push([
+        item.product_name,
+        item.product_code || '',
+        item.quantity,
+        parseFloat(item.price_usd).toFixed(2),
+        (item.discount_percent || 0) + '%',
+        parseFloat(item.total_usd).toFixed(2),
+        parseFloat(item.total_bs).toFixed(2)
+      ]);
+    });
+    
+    data.push([]);
+    data.push(['', '', '', '', 'Subtotal:', parseFloat(sale.subtotal_usd).toFixed(2)]);
+    if (parseFloat(sale.discount_usd) > 0) {
+      data.push(['', '', '', '', 'Descuento:', '-' + parseFloat(sale.discount_usd).toFixed(2)]);
+    }
+    data.push(['', '', '', '', 'IVA:', parseFloat(sale.tax_usd).toFixed(2)]);
+    data.push(['', '', '', '', 'TOTAL USD:', parseFloat(sale.total_usd).toFixed(2)]);
+    data.push(['', '', '', '', 'TOTAL BS:', parseFloat(sale.total_bs).toFixed(2)]);
+    
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [
+      { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 14 },
+      { wch: 12 }, { wch: 14 }, { wch: 14 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Recibo');
+    XLSX.writeFile(wb, 'Recibo_' + sale.sale_number + '.xlsx');
+    
+  } catch (e) {
+    showToast('Error generando Excel: ' + e.message, 'error');
+    console.error('Excel Error:', e);
+  }
+}
+
+/* ── Excel Export (Detailed Sales Report) ────────────────── */
+async function downloadDetailedSalesExcel() {
+  if (!currentSalesData.length) return;
+  
+  try {
+    showToast('Generando reporte detallado...', 'info', 2000);
+    var methodNames = { cash_usd:'Efectivo $', cash_bs:'Efectivo Bs', card:'Tarjeta', pago_movil:'Pago Movil', mixed:'Mixto' };
+    
+    var rows = [
+      ['Nro Factura', 'Fecha', 'Cliente', 'Cajero', 'Metodo Pago', 'Producto', 'Codigo', 'Cantidad', 'Precio Unit USD', 'Desc %', 'Total USD', 'Total Bs', 'Estado']
+    ];
+    
+    for (var i = 0; i < currentSalesData.length; i++) {
+      var s = currentSalesData[i];
+      var fullSale = await api.get('/sales/' + s.id);
+      
+      fullSale.items.forEach(function(item) {
+        rows.push([
+          s.sale_number,
+          new Date(s.created_at).toLocaleString('es-VE'),
+          s.customer_name || 'Consumidor Final',
+          s.user_name || '-',
+          methodNames[s.payment_method] || s.payment_method,
+          item.product_name,
+          item.product_code || '',
+          item.quantity,
+          parseFloat(item.price_usd).toFixed(2),
+          (item.discount_percent || 0) + '%',
+          parseFloat(item.total_usd).toFixed(2),
+          parseFloat(item.total_bs).toFixed(2),
+          s.status === 'completed' ? 'Completada' : 'Anulada'
+        ]);
+      });
+    }
+    
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 14 },
+      { wch: 25 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 10 },
+      { wch: 12 }, { wch: 14 }, { wch: 12 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Detalle Ventas');
+    
+    var from = document.getElementById('date-from').value;
+    var to = document.getElementById('date-to').value;
+    XLSX.writeFile(wb, 'Reporte_Detallado_' + from + '_a_' + to + '.xlsx');
+    showToast('Reporte descargado exitosamente', 'success');
+    
+  } catch (e) {
+    showToast('Error al generar reporte: ' + e.message, 'error');
+    console.error('Excel Error:', e);
+  }
 }

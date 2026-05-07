@@ -12,6 +12,8 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#8b5cf6">
   <link rel="apple-touch-icon" href="img/icon.svg">
+  <!-- SheetJS for Excel Export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
@@ -111,13 +113,18 @@
     <div class="card" style="margin-top:1.25rem;padding:0;">
       <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <div class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-receipt" style="color:var(--sky);"></i> Historial de Ventas</div>
-        <button class="btn btn-outline btn-sm" onclick="downloadSalesCSV()" id="btn-download-sales" disabled>
-          <i class="fa-solid fa-file-csv"></i> Descargar CSV
-        </button>
+        <div style="display:flex; gap:0.5rem;">
+          <button class="btn btn-outline btn-sm" onclick="downloadSalesCSV()" id="btn-download-sales" disabled>
+            <i class="fa-solid fa-file-csv"></i> Resumen CSV
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="downloadDetailedSalesExcel()" id="btn-download-detailed" disabled style="border-color:var(--violet-light); color:var(--violet-light);">
+            <i class="fa-solid fa-file-excel"></i> Detalle Excel
+          </button>
+        </div>
       </div>
       <div class="table-wrapper" style="border:none;border-radius:0;">
         <table>
-          <thead><tr><th>Factura</th><th>Cliente</th><th>Cajero</th><th>Método</th><th>Productos</th><th>Total USD</th><th>Total Bs</th><th>Estado</th><th>Fecha</th></tr></thead>
+          <thead><tr><th>Factura</th><th>Cliente</th><th>Cajero</th><th>Método</th><th>Productos</th><th>Total USD</th><th>Total Bs</th><th>Estado</th><th>Fecha</th><th style="text-align:center;">Acciones</th></tr></thead>
           <tbody id="sales-tbody"><tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Cargando...</td></tr></tbody>
         </table>
       </div>
@@ -165,6 +172,11 @@
         </div>
       </div>
       <div style="text-align:right;font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;" id="sd-total-bs"></div>
+      <div class="modal-footer" style="padding:1rem 0 0 0; border-top:1px solid var(--border); margin-top:1.5rem; display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary" id="btn-modal-download-excel">
+          <i class="fa-solid fa-file-excel"></i> Descargar Excel
+        </button>
+      </div>
     </div>
   </div>
 </div>
