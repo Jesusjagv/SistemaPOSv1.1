@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super Admin — KalyPOS</title>
+  <link rel="stylesheet" href="css/main.css?v=1.0">
+  <link rel="stylesheet" href="css/dashboard.css?v=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="apple-touch-icon" href="img/icon.svg">
+</head>
+
+<body>
+  <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <div class="app-shell">
+    <!-- Header -->
+    <header class="app-header">
+      <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="app-logo">
+        <div class="logo-icon">🏪</div><span>KalyPOS</span>
+      </div>
+      <div class="bcv-badge">
+        <span class="bcv-flag">🇻🇪</span><span>BCV:</span>
+        <span class="bcv-rate">1$ = <strong id="bcv-rate">--</strong> Bs</span>
+        <div class="bcv-pulse"></div>
+      </div>
+      <div class="header-spacer"></div>
+
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema"
+        style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
+        <i id="theme-icon" class="fa-solid fa-moon"></i>
+      </button>
+
+      <div class="header-user" onclick="toggleUserDropdown(event)" style="cursor:pointer; position:relative;">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div class="user-info-text">
+          <div id="user-name" style="font-weight:600;font-size:0.8rem;"></div>
+          <div class="user-role" id="user-role"></div>
+        </div>
+        <i class="fa-solid fa-chevron-down"
+          style="font-size:0.75rem; margin-left:0.25rem; color:rgba(255,255,255,0.6);"></i>
+        <div id="user-dropdown" class="user-dropdown hidden">
+          <a href="/settings.html" class="dropdown-item"><i class="fa-solid fa-gear"></i> Configuracion</a>
+          <div class="dropdown-divider"></div>
+          <a href="#" class="dropdown-item text-danger" onclick="logout()"><i
+              class="fa-solid fa-right-from-bracket"></i> Cerrar Sesion</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="app-nav">
+      <span class="nav-section-label">Super Admin</span>
+      <a href="#" class="nav-item active" onclick="switchTab('companies');return false;" id="nav-companies">
+        <i class="fa-solid fa-building"></i> Empresas
+      </a>
+      <a href="#" class="nav-item" onclick="switchTab('requests');return false;" id="nav-requests">
+        <i class="fa-solid fa-clipboard-list"></i> Solicitudes
+        <span class="badge badge-warning" id="requests-badge"
+          style="display:none;margin-left:auto;font-size:0.7rem;"></span>
+      </a>
+    </nav>
+
+    <!-- Main -->
+    <main class="app-main">
+      <!-- ==================== TAB: EMPRESAS ==================== -->
+      <div id="tab-companies">
+        <div class="page-header">
+          <div>
+            <div class="page-title"><i class="fa-solid fa-building" style="color:var(--violet-light);"></i> Panel de
+              Super Administrador</div>
+            <div class="page-subtitle">Gestiona todas las empresas registradas en el sistema</div>
+          </div>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <div class="search-bar">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input id="search-input" class="search-input" placeholder="Buscar empresa..."
+                oninput="filterCompanies(this.value)">
+            </div>
+            <button class="btn btn-primary" onclick="openRegisterModal()">
+              <i class="fa-solid fa-plus"></i> Nueva Empresa
+            </button>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid stats-grid-4" id="stats-grid">
+          <div class="stat-card">
+            <span class="stat-watermark"><i class="fa-solid fa-building"></i></span>
+            <div class="stat-icon" style="background:rgba(111,66,193,0.12);color:var(--violet-light);"><i
+                class="fa-solid fa-building"></i></div>
+            <div class="stat-label">Total Empresas</div>
+            <div class="stat-value" id="stat-total">--</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-watermark"><i class="fa-solid fa-check-circle"></i></span>
+            <div class="stat-icon" style="background:rgba(16,185,129,0.2);color:var(--emerald-light);"><i
+                class="fa-solid fa-check-circle"></i></div>
+            <div class="stat-label">Activas</div>
+            <div class="stat-value" id="stat-active">--</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-watermark"><i class="fa-solid fa-users"></i></span>
+            <div class="stat-icon" style="background:rgba(245,158,11,0.2);color:#fbbf24;"><i
+                class="fa-solid fa-users"></i></div>
+            <div class="stat-label">Total Usuarios</div>
+            <div class="stat-value" id="stat-users">--</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-watermark"><i class="fa-solid fa-hourglass-half"></i></span>
+            <div class="stat-icon" style="background:rgba(244,63,94,0.2);color:#fb7185;"><i
+                class="fa-solid fa-hourglass-half"></i></div>
+            <div class="stat-label">En Demo</div>
+            <div class="stat-value" id="stat-demo">--</div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card" style="padding:0;">
+          <div class="table-wrapper">
+            <table id="companies-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Empresa</th>
+                  <th>Estado</th>
+                  <th>Demo</th>
+                  <th>Usuarios</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="companies-tbody">
+                <tr>
+                  <td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">
+                    <div class="spinner"></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== TAB: SOLICITUDES ==================== -->
+      <div id="tab-requests" style="display:none;">
+        <div class="page-header">
+          <div>
+            <div class="page-title"><i class="fa-solid fa-clipboard-list" style="color:#fbbf24;"></i> Solicitudes de
+              Registro</div>
+            <div class="page-subtitle">Empresas que se registraron y esperan aprobacion</div>
+          </div>
+        </div>
+
+        <!-- Request Stats -->
+        <div class="stats-grid stats-grid-3">
+          <div class="stat-card">
+            <span class="stat-watermark"><i class="fa-solid fa-clock"></i></span>
+            <div class="stat-icon" style="background:rgba(245,158,11,0.2);color:#fbbf24;"><i
+                class="fa-solid fa-clock"></i></div>
+            <div class="stat-label">Pendientes</div>
+            <div class="stat-value" id="stat-pending">--</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-watermark"><i class="fa-solid fa-check-circle"></i></span>
+            <div class="stat-icon" style="background:rgba(16,185,129,0.2);color:var(--emerald-light);"><i
+                class="fa-solid fa-check-circle"></i></div>
+            <div class="stat-label">Aprobadas Hoy</div>
+            <div class="stat-value" id="stat-approved-today">--</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-watermark"><i class="fa-solid fa-xmark-circle"></i></span>
+            <div class="stat-icon" style="background:rgba(244,63,94,0.2);color:#fb7185;"><i
+                class="fa-solid fa-xmark-circle"></i></div>
+            <div class="stat-label">Rechazadas</div>
+            <div class="stat-value" id="stat-rejected">--</div>
+          </div>
+        </div>
+
+        <!-- Requests Table -->
+        <div class="card" style="padding:0;">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Admin</th>
+                  <th>Email</th>
+                  <th>Registro</th>
+                  <th>Demo Restante</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="requests-tbody">
+                <tr>
+                  <td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Cargando
+                    solicitudes...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: Register Company (superadmin manual) -->
+  <div class="modal-overlay hidden" id="register-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-solid fa-building" style="color:var(--violet-light);"></i> Registrar Nueva
+          Empresa</div>
+        <button class="btn-close" onclick="closeModal('register-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">Nombre de la Empresa *</label>
+            <input id="reg-company-name" class="form-control" placeholder="Ej: Farmacia Los Angeles C.A.">
+          </div>
+        </div>
+        <div style="margin:1rem 0 0.5rem;font-weight:600;font-size:0.85rem;color:var(--text-secondary);">
+          <i class="fa-solid fa-user-shield"></i> Datos del Administrador
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nombre del Admin *</label>
+            <input id="reg-admin-name" class="form-control" placeholder="Ej: Juan Perez">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Usuario *</label>
+            <input id="reg-admin-username" class="form-control" placeholder="Ej: admin_farmacia">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">Contrasena *</label>
+            <input id="reg-admin-password" type="password" class="form-control" placeholder="Minimo 6 caracteres">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('register-modal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="registerCompany()"><i class="fa-solid fa-save"></i> Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Company -->
+  <div class="modal-overlay hidden" id="edit-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-solid fa-pen-to-square" style="color:var(--violet-light);"></i> Editar
+          Empresa</div>
+        <button class="btn-close" onclick="closeModal('edit-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">Nombre de la Empresa *</label>
+            <input id="edit-company-name" class="form-control" placeholder="Nombre de la empresa">
+          </div>
+        </div>
+        <div style="margin:1rem 0 0.5rem;font-weight:600;font-size:0.85rem;color:var(--text-secondary);">
+          <i class="fa-solid fa-users"></i> Administradores
+        </div>
+        <div class="card" style="padding:0;">
+          <div class="table-wrapper">
+            <table style="width:100%;">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Nombre</th>
+                  <th>Email</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="edit-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('edit-modal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveEditCompany()"><i class="fa-solid fa-save"></i> Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Extend Trial -->
+  <div class="modal-overlay hidden" id="extend-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-solid fa-clock" style="color:#fbbf24;"></i> Extender Demo</div>
+        <button class="btn-close" onclick="closeModal('extend-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;">
+          Empresa: <strong id="extend-company-name"></strong>
+        </p>
+        <div class="form-group">
+          <label class="form-label">Dias a extender</label>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm extend-days-btn" onclick="setExtendDays(7)" data-days="7">7
+              dias</button>
+            <button class="btn btn-outline btn-sm extend-days-btn" onclick="setExtendDays(14)" data-days="14">14
+              dias</button>
+            <button class="btn btn-outline btn-sm extend-days-btn" onclick="setExtendDays(30)" data-days="30">30
+              dias</button>
+            <button class="btn btn-outline btn-sm extend-days-btn" onclick="setExtendDays(90)" data-days="90">90
+              dias</button>
+          </div>
+          <input id="extend-days-input" type="number" class="form-control" value="7" min="1" max="365"
+            style="margin-top:0.75rem;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('extend-modal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmExtendTrial()"><i class="fa-solid fa-clock"></i>
+          Extender</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="js/config.js?v=1.0"></script>
+  <script src="js/api.js?v=1.1"></script>
+  <script src="js/keyboard.js?v=1.0"></script>
+  <script src="js/superadmin.js?v=1.1"></script>
+</body>
+
+</html>

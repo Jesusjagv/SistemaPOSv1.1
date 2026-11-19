@@ -1,32 +1,33 @@
 /**
  * theme.js — Gestión de temas Claro/Oscuro
+ * Default: Light mode (clean UI)
  */
 
 (function() {
-    const theme = localStorage.getItem('app-theme') || 'dark';
-    if (theme === 'light') {
-        document.documentElement.classList.add('light-mode');
+    const theme = localStorage.getItem('app-theme') || 'light';
+    if (theme === 'dark') {
+        document.documentElement.classList.add('dark-mode');
     }
 })();
 
 function toggleTheme() {
-    const isLight = document.documentElement.classList.toggle('light-mode');
-    const newTheme = isLight ? 'light' : 'dark';
+    const isDark = document.documentElement.classList.toggle('dark-mode');
+    const newTheme = isDark ? 'dark' : 'light';
     localStorage.setItem('app-theme', newTheme);
-    updateThemeIcon(isLight);
+    updateThemeIcon(isDark);
 }
 
-function updateThemeIcon(isLight) {
+function updateThemeIcon(isDark) {
     const icon = document.getElementById('theme-icon');
     if (icon) {
-        icon.className = isLight ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
     }
 }
 
 // Inicializar icono al cargar
 document.addEventListener('DOMContentLoaded', () => {
-    const isLight = document.documentElement.classList.contains('light-mode');
-    updateThemeIcon(isLight);
+    const isDark = document.documentElement.classList.contains('dark-mode');
+    updateThemeIcon(isDark);
 
     // Registrar Service Worker para soporte PWA
     if ('serviceWorker' in navigator) {

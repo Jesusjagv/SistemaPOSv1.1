@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro — Sistema POS</title>
+  <link rel="stylesheet" href="css/main.css?v=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="js/theme.js?v=1.0"></script>
+  <link rel="apple-touch-icon" href="img/iconos.png">
+</head>
+
+<body>
+  <div class="login-page">
+    <div class="login-bg-orb login-bg-orb-1"></div>
+    <div class="login-bg-orb login-bg-orb-2"></div>
+
+    <button class="btn btn-ghost" onclick="toggleTheme()"
+      style="position:absolute;top:1rem;right:1rem;z-index:10;border-radius:50%;width:40px;height:40px;padding:0;">
+      <i id="theme-icon" class="fa-solid fa-moon"></i>
+    </button>
+
+    <div class="login-card" style="max-width:480px;">
+      <!-- Logo -->
+      <div class="login-logo">
+        <div class="logo-box">
+          <img src="img/iconos.png" alt="KalyPOS" class="logo-img">
+        </div>
+        <h1>Crear Cuenta</h1>
+      </div>
+
+      <!-- Trial Badge -->
+      <div style="text-align:center;margin-bottom:1.25rem;">
+        <span
+          style="display:inline-flex;align-items:center;gap:0.4rem;background:rgba(16,185,129,0.15);color:var(--emerald-light);padding:0.4rem 1rem;border-radius:2rem;font-size:0.8rem;font-weight:600;">
+          <i class="fa-solid fa-gift"></i> 7 dias de demo gratis — Sin tarjeta de credito
+        </span>
+      </div>
+
+      <!-- Error message -->
+      <div class="login-error" id="register-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="register-error-msg">Error</span>
+      </div>
+
+      <!-- Success message -->
+      <div id="register-success" style="display:none;text-align:center;padding:2rem 1rem;">
+        <div style="font-size:3rem;margin-bottom:1rem;">&#x2705;</div>
+        <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;color:var(--emerald-light);">Registro exitoso
+        </div>
+        <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.5rem;">
+          Tu cuenta ha sido creada con <strong>7 dias de demo gratis</strong>.<br>
+          Ya puedes iniciar sesion para explorar el sistema.
+        </div>
+        <a href="/index.html" class="btn btn-primary btn-lg w-full" id="go-login-btn">
+          <i class="fa-solid fa-right-to-bracket"></i> Ir a Iniciar Sesion
+        </a>
+      </div>
+
+      <!-- Register Form -->
+      <form class="login-form" id="register-form" autocomplete="on">
+        <div class="form-group">
+          <label class="form-label" for="reg-company">
+            <i class="fa-solid fa-building"></i> Nombre del Negocio
+          </label>
+          <input id="reg-company" type="text" class="form-control" placeholder="Ej: Farmacia Los Angeles" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-name">
+            <i class="fa-solid fa-user"></i> Tu Nombre
+          </label>
+          <input id="reg-name" type="text" class="form-control" placeholder="Ej: Juan Perez" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-email">
+            <i class="fa-solid fa-envelope"></i> Email (opcional)
+          </label>
+          <input id="reg-email" type="email" class="form-control" placeholder="tu@email.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-username">
+            <i class="fa-solid fa-at"></i> Usuario
+          </label>
+          <input id="reg-username" type="text" class="form-control" placeholder="Elige un usuario"
+            autocomplete="username" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-password">
+            <i class="fa-solid fa-lock"></i> Contrasena
+          </label>
+          <div style="position:relative;">
+            <input id="reg-password" type="password" class="form-control" placeholder="Minimo 6 caracteres"
+              autocomplete="new-password" required style="padding-right:2.5rem;">
+            <button type="button" id="toggle-pwd"
+              style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.9rem;">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg login-btn w-full" id="register-btn">
+          <i class="fa-solid fa-rocket"></i> Crear Mi Cuenta Gratis
+        </button>
+      </form>
+
+      <!-- Footer -->
+      <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);text-align:center;">
+        <p style="font-size:0.75rem;color:var(--text-muted);">
+          Ya tienes cuenta? <a href="/index.html"
+            style="color:var(--violet-light);text-decoration:none;font-weight:600;">Iniciar Sesion</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="js/config.js?v=1.0"></script>
+  <script src="js/api.js?v=1.1"></script>
+  <script src="js/keyboard.js?v=1.0"></script>
+  <script src="js/register.js?v=1.0"></script>
+</body>
+
+</html>

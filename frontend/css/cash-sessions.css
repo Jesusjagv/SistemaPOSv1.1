@@ -1,0 +1,439 @@
+﻿/* ================================================
+   cash-sessions.css — Módulo de Cierre de Caja
+   Sistema POS Venezuela
+   ================================================ */
+
+/* ── Active Session Banner ──────────────────────── */
+.active-session-banner {
+  background: linear-gradient(135deg,
+    rgba(25,135,84,0.12) 0%,
+    rgba(25,135,84,0.04) 100%);
+  border: 1px solid rgba(25,135,84,0.3);
+  border-radius: 0px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  animation: slideUp 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.active-session-banner::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--green);
+  border-radius: 0px 0 0 0px;
+}
+
+.session-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.session-status-dot {
+  width: 10px; height: 10px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(25,135,84,0.3);
+  animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+.session-banner-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: 0.05em;
+}
+
+.session-banner-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.session-banner-stats {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.session-stat {
+  text-align: center;
+}
+
+.session-stat-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.session-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 0.1rem;
+}
+
+/* ── Empty Panel (no session) ───────────────────── */
+.cs-empty-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1rem;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-light);
+  border-radius: 0px;
+}
+
+.cs-empty-panel i {
+  font-size: 3rem;
+  color: var(--green);
+  opacity: 0.4;
+}
+
+.cs-empty-panel h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cs-empty-panel p {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  max-width: 300px;
+}
+
+/* ── Summary Grid (cierre modal) ────────────────── */
+.cs-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 600px) {
+  .cs-summary-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.cs-summary-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cs-summary-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem;
+}
+
+.cs-summary-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.cs-summary-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Section blocks in modals ───────────────────── */
+.cs-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cs-section-title {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cs-section-title i {
+  color: var(--green);
+  width: 16px;
+}
+
+/* ── Payment breakdown table ────────────────────── */
+.cs-payment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.83rem;
+}
+.cs-payment-row:last-child { border-bottom: none; }
+
+.cs-payment-method {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+}
+.cs-payment-method .method-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+.cs-payment-values {
+  display: flex;
+  gap: 1.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+}
+
+/* ── Denomination inputs ────────────────────────── */
+.denom-row {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.denom-row .denom-label {
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+}
+
+.denom-row input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.5rem;
+  color: var(--text-primary);
+  text-align: center;
+  outline: none;
+  width: 100%;
+  font-size: 0.8rem;
+}
+.denom-row input:focus { border-color: var(--green); }
+
+.denom-row .denom-subtotal {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+/* ── Difference Panel ───────────────────────────── */
+.cs-difference-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  margin-top: 0.75rem;
+}
+
+.cs-diff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 0.2rem 0;
+  color: var(--text-secondary);
+}
+
+.cs-diff-row strong { font-family: 'JetBrains Mono', monospace; }
+
+.diff-ok    { color: var(--green) !important; }
+.diff-warn  { color: var(--amber) !important; }
+.diff-error { color: var(--rose) !important; }
+
+/* ── Z/X Report Container ───────────────────────── */
+.z-report-container {
+  padding: 1.5rem;
+}
+
+.z-report {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0px;
+  padding: 1.5rem;
+  font-size: 0.83rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.z-report-header {
+  text-align: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px dashed var(--border-light);
+}
+
+.z-report-header h2 {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.z-report-header .z-badge {
+  display: inline-block;
+  background: var(--rose);
+  color: white;
+  padding: 0.15rem 0.6rem;
+  border-radius: 0px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.35rem;
+}
+
+.z-report-header .x-badge {
+  display: inline-block;
+  background: var(--amber);
+  color: #0a0c15;
+  padding: 0.15rem 0.6rem;
+  border-radius: 0px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.35rem;
+}
+
+.z-report-info {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.z-section {
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px dashed var(--border);
+}
+.z-section:last-child { border-bottom: none; }
+
+.z-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.z-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.2rem 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.z-row span:last-child {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.z-row-total {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-light);
+  padding-top: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.z-row-total span:last-child { color: var(--usd-color); }
+
+.z-difference-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.83rem;
+  font-weight: 600;
+  margin-top: 0.35rem;
+}
+
+.z-difference-ok    { background: rgba(25,135,84,0.1); color: var(--green); }
+.z-difference-warn  { background: rgba(214,158,46,0.1); color: var(--amber); }
+.z-difference-error { background: rgba(229,62,62,0.1);  color: var(--rose); }
+
+.z-signature-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border-light);
+}
+.z-signature-line {
+  border-top: 1px solid var(--border-light);
+  padding-top: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── History table status badges ────────────────── */
+.badge-open   { background: rgba(25,135,84,0.15); color: var(--green); }
+.badge-closed { background: rgba(113,128,150,0.2); color: var(--text-secondary); }
+.badge-review { background: rgba(214,158,46,0.15); color: var(--amber); }
+
+/* ── Print Styles ───────────────────────────────── */
+@media print {
+  body * { visibility: hidden !important; }
+  .z-report-container,
+  .z-report-container * { visibility: visible !important; }
+  .z-report-container {
+    position: fixed !important;
+    inset: 0 !important;
+    background: white !important;
+    color: black !important;
+    padding: 1rem !important;
+    z-index: 99999 !important;
+  }
+  .z-report {
+    background: white !important;
+    border: none !important;
+    color: black !important;
+    max-width: 100% !important;
+    font-size: 11px !important;
+  }
+  .z-report * { color: black !important; border-color: #999 !important; }
+  .z-badge, .x-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+

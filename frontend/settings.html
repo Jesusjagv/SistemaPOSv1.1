@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuración — KalyPOS</title>
+  <link rel="stylesheet" href="css/main.css?v=1.0">
+  <link rel="stylesheet" href="css/dashboard.css?v=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="apple-touch-icon" href="img/icon.svg">
+  <script src="js/theme.js?v=1.0"></script>
+  <style>
+    /* ── Settings layout ─────────────────────────── */
+    .settings-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .settings-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Settings sidebar tabs ───────────────────── */
+    .settings-tabs {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .settings-tab {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-md);
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: var(--transition);
+      width: 100%;
+    }
+
+    .settings-tab:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .settings-tab.active {
+      background: rgba(124, 58, 237, 0.12);
+      color: var(--violet-light);
+      font-weight: 600;
+    }
+
+    .settings-tab i {
+      width: 16px;
+      text-align: center;
+    }
+
+    /* ── Settings panels ─────────────────────────── */
+    .settings-panel {
+      display: none;
+    }
+
+    .settings-panel.active {
+      display: block;
+    }
+
+    /* ── Profile card ────────────────────────────── */
+    .profile-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .profile-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .profile-avatar-big {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--violet), var(--violet-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+    }
+
+    .profile-meta h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.2rem;
+    }
+
+    .profile-meta .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(124, 58, 237, 0.15);
+      color: var(--violet-light);
+    }
+
+    /* ── Security section ────────────────────────── */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .section-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .section-card-body {
+      padding: 1.25rem;
+    }
+
+    /* ── Password strength bar ───────────────────── */
+    .pwd-strength-wrap {
+      margin-top: 0.5rem;
+    }
+
+    .pwd-strength-bar {
+      height: 4px;
+      border-radius: 999px;
+      background: var(--border);
+      overflow: hidden;
+      margin-bottom: 0.25rem;
+    }
+
+    .pwd-strength-fill {
+      height: 100%;
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.3s ease, background-color 0.3s ease;
+    }
+
+    .pwd-strength-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* ── Toggle theme preview ────────────────────── */
+    .theme-option {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .theme-option:hover {
+      border-color: var(--violet);
+    }
+
+    .theme-option.selected {
+      border-color: var(--violet-light);
+      background: rgba(124, 58, 237, 0.08);
+    }
+
+    .theme-swatch {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+
+    .theme-swatch.light {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+    }
+
+    .theme-swatch.dark {
+      background: #0f0f12;
+      border: 1px solid #1e1e2e;
+    }
+
+    /* ── Info row ────────────────────────────────── */
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-row .label {
+      color: var(--text-muted);
+    }
+
+    .info-row .value {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* ── Toggle Switch ──────────────────────────── */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--border);
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+
+    .switch .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .switch input:checked+.slider {
+      background-color: var(--violet);
+    }
+
+    .switch input:checked+.slider:before {
+      transform: translateX(20px);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <div class="app-shell">
+    <!-- Header -->
+    <header class="app-header">
+      <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="app-logo">
+        <div class="logo-icon">🏪</div><span>KalyPOS</span>
+      </div>
+      <div class="bcv-badge">
+        <span class="bcv-flag">🇻🇪</span><span>BCV:</span>
+        <span class="bcv-rate">1$ = <strong id="bcv-rate">--</strong> Bs</span>
+        <div class="bcv-pulse"></div>
+      </div>
+      <div class="header-spacer"></div>
+
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema"
+        style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
+        <i id="theme-icon" class="fa-solid fa-moon"></i>
+      </button>
+      <nav class="header-nav-desktop" style="display:flex;gap:0.25rem;">
+        <a href="/pos.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-cash-register"></i> POS</a>
+        <a href="/products.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+        <a href="/customers.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-users"></i> Clientes</a>
+        <a href="/reports.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-chart-bar"></i> Reportes</a>
+        <a href="/debts.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-hand-holding-dollar"></i> Fiados</a>
+        <a href="/cash-sessions.html" class="nav-item"
+          style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;border-left:2px solid var(--emerald);background:rgba(16,185,129,0.08);"><i
+            class="fa-solid fa-cash-register" style="color:var(--emerald-light);"></i> Caja</a>
+      </nav>
+
+      <div class="header-user" onclick="toggleUserDropdown(event)" style="cursor:pointer; position:relative;">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div class="user-info-text">
+          <div id="user-name" style="font-weight:600;font-size:0.8rem;"></div>
+          <div class="user-role" id="user-role"></div>
+        </div>
+        <i class="fa-solid fa-chevron-down"
+          style="font-size:0.75rem; margin-left:0.25rem; color:rgba(255,255,255,0.6);"></i>
+        <!-- Dropdown -->
+        <div id="user-dropdown" class="user-dropdown hidden">
+          <a href="/settings.html" class="dropdown-item"><i class="fa-solid fa-gear"></i> Configuración</a>
+          <div class="dropdown-divider"></div>
+          <a href="#" class="dropdown-item text-danger" onclick="logout()"><i
+              class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="app-nav">
+      <span class="nav-section-label">Menú</span>
+      <a href="/pos.html" class="nav-item"><i class="fa-solid fa-cash-register"></i> POS</a>
+      <a href="/products.html" class="nav-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+      <a href="/customers.html" class="nav-item"><i class="fa-solid fa-users"></i> Clientes</a>
+      <a href="/debts.html" class="nav-item nav-fiados-link"><i class="fa-solid fa-hand-holding-dollar"></i> Fiados</a>
+      <a href="/cash-sessions.html" class="nav-item nav-caja-link"><i class="fa-solid fa-cash-register"
+          style="color:var(--emerald-light);"></i> Caja</a>
+      <a href="/reports.html" class="nav-item"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
+    </nav>
+
+    <!-- Main -->
+    <main class="app-main">
+      <!-- Page header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title"><i class="fa-solid fa-gear" style="color:var(--violet-light);"></i> Configuración
+          </div>
+          <div class="page-subtitle">Administra tu cuenta y preferencias</div>
+        </div>
+      </div>
+
+      <!-- Settings layout -->
+      <div class="settings-layout">
+
+        <!-- Left: tab menu -->
+        <aside class="settings-tabs">
+          <button class="settings-tab active" id="tab-perfil" onclick="switchTab('perfil')">
+            <i class="fa-solid fa-user"></i> Mi Perfil
+          </button>
+          <button class="settings-tab" id="tab-seguridad" onclick="switchTab('seguridad')">
+            <i class="fa-solid fa-shield-halved"></i> Seguridad
+          </button>
+          <button class="settings-tab" id="tab-apariencia" onclick="switchTab('apariencia')">
+            <i class="fa-solid fa-palette"></i> Apariencia
+          </button>
+          <button class="settings-tab" id="tab-facturacion" onclick="switchTab('facturacion')">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Facturación
+          </button>
+          <button class="settings-tab" id="tab-tasa" onclick="switchTab('tasa')">
+            <i class="fa-solid fa-money-bill-transfer"></i> Tasa de Cambio
+          </button>
+        </aside>
+
+        <!-- Right: panels -->
+        <div>
+
+          <!-- ── Panel: Perfil ───────────────────── -->
+          <div class="settings-panel active" id="panel-perfil">
+            <div class="profile-card">
+              <div class="profile-card-header">
+                <div class="profile-avatar-big" id="profile-avatar-big">A</div>
+                <div class="profile-meta">
+                  <h2 id="profile-name">--</h2>
+                  <span class="role-badge"><i class="fa-solid fa-circle-check"></i> <span
+                      id="profile-role">--</span></span>
+                </div>
+              </div>
+
+              <div class="info-row">
+                <span class="label"><i class="fa-solid fa-user" style="width:14px;"></i> Usuario</span>
+                <span class="value" id="profile-username">--</span>
+              </div>
+              <div class="info-row">
+                <span class="label"><i class="fa-solid fa-id-badge" style="width:14px;"></i> Rol</span>
+                <span class="value" id="profile-role-2">--</span>
+              </div>
+              <div class="info-row">
+                <span class="label"><i class="fa-solid fa-building" style="width:14px;"></i> Empresa ID</span>
+                <span class="value" id="profile-company">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Panel: Seguridad ────────────────── -->
+          <div class="settings-panel" id="panel-seguridad">
+            <div class="section-card">
+              <div class="section-card-header">
+                <i class="fa-solid fa-key" style="color:var(--violet-light);"></i>
+                Cambiar Contraseña
+              </div>
+              <div class="section-card-body">
+                <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                  Ingresa tu contraseña actual y luego define la nueva. La nueva contraseña debe tener al menos 8
+                  caracteres.
+                </p>
+
+                <form id="pwd-form" onsubmit="event.preventDefault(); changePassword();">
+                  <div class="form-group" style="margin-bottom:1rem;">
+                    <label class="form-label">Contraseña actual</label>
+                    <div style="position:relative;">
+                      <input type="password" id="old-pwd" class="form-control" placeholder="Tu contraseña actual"
+                        required style="padding-right:2.5rem;">
+                      <button type="button" onclick="togglePwdVisibility('old-pwd','eye-old')"
+                        style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0;">
+                        <i class="fa-solid fa-eye" id="eye-old"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom:0.5rem;">
+                    <label class="form-label">Nueva contraseña</label>
+                    <div style="position:relative;">
+                      <input type="password" id="new-pwd" class="form-control" placeholder="Mínimo 8 caracteres"
+                        required oninput="evalPasswordStrength(this.value)" style="padding-right:2.5rem;">
+                      <button type="button" onclick="togglePwdVisibility('new-pwd','eye-new')"
+                        style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0;">
+                        <i class="fa-solid fa-eye" id="eye-new"></i>
+                      </button>
+                    </div>
+                    <!-- Strength bar -->
+                    <div class="pwd-strength-wrap">
+                      <div class="pwd-strength-bar">
+                        <div class="pwd-strength-fill" id="pwd-strength-fill"></div>
+                      </div>
+                      <span class="pwd-strength-label" id="pwd-strength-label"></span>
+                    </div>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom:1.5rem;">
+                    <label class="form-label">Repetir nueva contraseña</label>
+                    <div style="position:relative;">
+                      <input type="password" id="confirm-pwd" class="form-control"
+                        placeholder="Repite la nueva contraseña" required oninput="checkConfirmMatch()"
+                        style="padding-right:2.5rem;">
+                      <button type="button" onclick="togglePwdVisibility('confirm-pwd','eye-confirm')"
+                        style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0;">
+                        <i class="fa-solid fa-eye" id="eye-confirm"></i>
+                      </button>
+                    </div>
+                    <span id="match-hint" style="font-size:0.72rem;display:none;margin-top:0.3rem;"></span>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary" id="btn-change-pwd" style="width:100%;">
+                    <i class="fa-solid fa-lock"></i> Actualizar Contraseña
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Panel: Apariencia ───────────────── -->
+          <div class="settings-panel" id="panel-apariencia">
+            <div class="section-card">
+              <div class="section-card-header">
+                <i class="fa-solid fa-circle-half-stroke" style="color:var(--violet-light);"></i>
+                Tema de la Aplicación
+              </div>
+              <div class="section-card-body">
+                <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                  Selecciona el tema visual que prefieras. El cambio se aplica de inmediato.
+                </p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                  <div class="theme-option" id="opt-light" onclick="applyThemeChoice('light')">
+                    <div class="theme-swatch light"></div>
+                    <div>
+                      <div style="font-weight:600;font-size:0.85rem;">Claro</div>
+                      <div style="font-size:0.72rem;color:var(--text-muted);">Fondo blanco</div>
+                    </div>
+                    <i class="fa-solid fa-check" id="check-light"
+                      style="margin-left:auto;color:var(--violet-light);display:none;"></i>
+                  </div>
+                  <div class="theme-option" id="opt-dark" onclick="applyThemeChoice('dark')">
+                    <div class="theme-swatch dark"></div>
+                    <div>
+                      <div style="font-weight:600;font-size:0.85rem;">Oscuro</div>
+                      <div style="font-size:0.72rem;color:var(--text-muted);">Fondo negro</div>
+                    </div>
+                    <i class="fa-solid fa-check" id="check-dark"
+                      style="margin-left:auto;color:var(--violet-light);display:none;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Panel: Facturación ──────────────── -->
+          <div class="settings-panel" id="panel-facturacion">
+            <div class="section-card">
+              <div class="section-card-header">
+                <i class="fa-solid fa-file-invoice-dollar" style="color:var(--violet-light);"></i>
+                Configuración de Impuestos
+              </div>
+              <div class="section-card-body">
+                <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                  Activa o desactiva el cobro de IVA en las ventas. Si lo desactivas, no se cobrará impuesto en el Punto
+                  de Venta.
+                </p>
+
+                <!-- IVA Toggle -->
+                <div
+                  style="display:flex;align-items:center;justify-content:space-between;padding:1rem;background:var(--bg-card-hover);border-radius:var(--radius-md);margin-bottom:1rem;">
+                  <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <i class="fa-solid fa-building-columns" style="color:#fb7185;font-size:1.1rem;"></i>
+                    <div>
+                      <div style="font-weight:600;font-size:0.9rem;">Cobrar IVA</div>
+                      <div style="font-size:0.75rem;color:var(--text-muted);">Aplicar impuesto a las ventas</div>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-iva-toggle" onchange="saveIvaSetting()">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <!-- IVA Percentage -->
+                <div id="iva-pct-section" style="display:none;">
+                  <div
+                    style="display:flex;align-items:center;gap:0.75rem;padding:1rem;background:var(--bg-card-hover);border-radius:var(--radius-md);">
+                    <i class="fa-solid fa-percent" style="color:#fb7185;font-size:1.1rem;"></i>
+                    <div style="flex:1;">
+                      <div style="font-weight:600;font-size:0.9rem;">Porcentaje de IVA</div>
+                      <div style="font-size:0.75rem;color:var(--text-muted);">Porcentaje a aplicar sobre el subtotal
+                      </div>
+                    </div>
+                    <input type="number" id="settings-iva-pct" class="form-control" value="16" min="0" max="100"
+                      step="1" style="width:80px;text-align:center;font-weight:600;" oninput="saveIvaSetting()">
+                    <span style="font-weight:600;color:var(--text-muted);">%</span>
+                  </div>
+                </div>
+
+                <!-- Status indicator -->
+                <div id="iva-status"
+                  style="margin-top:1rem;padding:0.75rem 1rem;border-radius:var(--radius-md);font-size:0.82rem;font-weight:600;text-align:center;">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Panel: Tasa de Cambio ──────────────── -->
+          <div class="settings-panel" id="panel-tasa">
+            <div class="section-card">
+              <div class="section-card-header">
+                <i class="fa-solid fa-money-bill-transfer" style="color:var(--emerald-light);"></i>
+                Configuración de Tasa BCV
+              </div>
+              <div class="section-card-body">
+                <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                  Define si deseas usar la tasa del Banco Central de Venezuela de forma automática o configurar una tasa
+                  fija manualmente.
+                </p>
+
+                <!-- Current Rate Display -->
+                <div
+                  style="display:flex;align-items:center;gap:0.75rem;padding:1rem;background:var(--bg-card-hover);border-radius:var(--radius-md);margin-bottom:1.25rem;">
+                  <i class="fa-solid fa-chart-line" style="color:var(--emerald-light);font-size:1.1rem;"></i>
+                  <div style="flex:1;">
+                    <div style="font-weight:600;font-size:0.9rem;">Tasa Actual</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);" id="tasa-current-source">Cargando...</div>
+                  </div>
+                  <div style="font-weight:700;font-size:1.1rem;color:var(--emerald-light);" id="tasa-current-value">--
+                  </div>
+                </div>
+
+                <!-- Mode Toggle -->
+                <div
+                  style="display:flex;align-items:center;justify-content:space-between;padding:1rem;background:var(--bg-card-hover);border-radius:var(--radius-md);margin-bottom:1rem;">
+                  <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <i class="fa-solid fa-robot" style="color:var(--emerald-light);font-size:1.1rem;"></i>
+                    <div>
+                      <div style="font-weight:600;font-size:0.9rem;">Modo Automático</div>
+                      <div style="font-size:0.75rem;color:var(--text-muted);">Obtener tasa del BCV automáticamente</div>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="tasa-mode-toggle" onchange="onTasaModeChange()">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <!-- Manual Rate Input -->
+                <div id="tasa-manual-section" style="display:none;">
+                  <div
+                    style="display:flex;align-items:center;gap:0.75rem;padding:1rem;background:var(--bg-card-hover);border-radius:var(--radius-md);margin-bottom:1rem;">
+                    <i class="fa-solid fa-pen" style="color:var(--emerald-light);font-size:1.1rem;"></i>
+                    <div style="flex:1;">
+                      <div style="font-weight:600;font-size:0.9rem;">Tasa Manual</div>
+                      <div style="font-size:0.75rem;color:var(--text-muted);">Ingresa la tasa fija en Bs por USD</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                      <input type="number" id="tasa-manual-input" class="form-control" placeholder="Ej: 36.50"
+                        step="0.01" min="0.01" style="width:120px;text-align:center;font-weight:600;font-size:1rem;">
+                      <span style="font-weight:600;color:var(--text-muted);">Bs/$</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Save Button -->
+                <button class="btn btn-primary" onclick="saveTasaSettings()" style="width:100%;" id="btn-save-tasa">
+                  <i class="fa-solid fa-save"></i> Guardar Configuración
+                </button>
+
+                <!-- Status -->
+                <div id="tasa-status"
+                  style="margin-top:1rem;padding:0.75rem 1rem;border-radius:var(--radius-md);font-size:0.82rem;font-weight:600;text-align:center;display:none;">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.right -->
+      </div><!-- /.settings-layout -->
+    </main>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="js/config.js?v=1.0"></script>
+  <script src="js/api.js?v=1.1"></script>
+  <script src="js/keyboard.js?v=1.0"></script>
+  <script src="js/settings.js?v=1.1"></script>
+</body>
+
+</html>

@@ -85,13 +85,20 @@ function openCustomerModal(customerId = null) {
 async function saveCustomer() {
   const id      = document.getElementById('cust-id').value;
   const name    = document.getElementById('cust-name').value.trim();
-  if (!name) { showToast('El nombre es requerido', 'warning'); return; }
+  if (!name) { showToast('El nombre es requerido', 'warning'); document.getElementById('cust-name').focus(); return; }
+
+  const phone = document.getElementById('cust-phone').value.trim();
+  if (phone && !/^[0-9\-\+\s]{7,15}$/.test(phone)) {
+    showToast('Formato de teléfono inválido', 'warning');
+    document.getElementById('cust-phone').focus();
+    return;
+  }
 
   const body = {
     name,
     doc_type:   document.getElementById('cust-doctype').value,
     doc_number: document.getElementById('cust-docnum').value.trim() || null,
-    phone:      document.getElementById('cust-phone').value.trim() || null,
+    phone:      phone || null,
     address:    document.getElementById('cust-address').value.trim() || null,
   };
   try {

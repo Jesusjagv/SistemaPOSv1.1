@@ -37,8 +37,7 @@ venv.bak/
 .flaskenv
 
 # Database
-*.db
-*.sqlite3
+# (MySQL only — no SQLite files)
 
 # IDEs
 .vscode/
@@ -49,3 +48,21 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
+
+# Perfil de WebView2 (escritorio) — ruido enorme, nunca commitear
+.webview2_data/
+
+# Logs y archivos locales del escritorio
+desktop_error.log
+stderr.txt
+*.log
+
+# Residuos SQLite (el sistema usa MySQL)
+backend/pos.db
+
+# Backups de CSS
+*.backup.css
+
+# Scripts one-off de frontend
+frontend/fix_*.py
+frontend/update_html.py

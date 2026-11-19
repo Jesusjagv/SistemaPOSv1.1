@@ -1,36 +1,32 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema POS v1.0 — Iniciar Sesión</title>
+  <title>KalyPOS — Iniciar Sesión</title>
   <meta name="description" content="Sistema de Punto de Venta para Venezuela con tasa BCV actualizada diariamente">
-  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/login.css?v=1.0">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <script src="js/theme.js"></script>
+  <script src="js/theme.js?v=1.0"></script>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#8b5cf6">
+  <meta name="theme-color" content="#198754">
   <link rel="apple-touch-icon" href="img/icon.svg">
 </head>
 
 <body>
   <div class="login-page">
-    <!-- Background orbs -->
-    <div class="login-bg-orb login-bg-orb-1"></div>
-    <div class="login-bg-orb login-bg-orb-2"></div>
-
-    <button class="btn btn-ghost" onclick="toggleTheme()"
-      style="position:absolute;top:1rem;right:1rem;z-index:10;border-radius:50%;width:40px;height:40px;padding:0;">
-      <i id="theme-icon" class="fa-solid fa-moon"></i>
-    </button>
+    <!-- Background pattern -->
+    <div class="login-bg-pattern"></div>
 
     <div class="login-card">
       <!-- Logo -->
       <div class="login-logo">
-        <div class="logo-box">🏪</div>
-        <h1>Sistema POS</h1>
-        <!--<p>Venezuela &bull; IVA 16% &bull; USD / Bs BCV</p>-->
+        <div class="logo-k">
+          <img src="img/iconos.png" alt="KalyPOS" class="logo-img">
+        </div>
+        <h1 class="brand-name"><span class="brand-kaly">Kaly</span><span class="brand-pos">POS</span></h1>
+        <p class="brand-slogan">Tu negocio en constante flujo</p>
       </div>
 
       <!-- Error message -->
@@ -46,36 +42,42 @@
             <i class="fa-solid fa-user"></i> Usuario
           </label>
           <input id="username" name="username" type="text" class="form-control" placeholder="Ingresa tu usuario"
-            autocomplete="username" required>
+            autocomplete="username" required autofocus>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="password">
             <i class="fa-solid fa-lock"></i> Contraseña
           </label>
-          <div style="position:relative;">
+          <div class="password-wrapper">
             <input id="password" name="password" type="password" class="form-control"
-              placeholder="Ingresa tu contraseña" autocomplete="current-password" required
-              style="padding-right:2.5rem;">
-            <button type="button" id="toggle-pwd"
-              style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.9rem;">
+              placeholder="Ingresa tu contraseña" autocomplete="current-password" required>
+            <button type="button" id="toggle-pwd" class="toggle-password">
               <i class="fa-solid fa-eye"></i>
             </button>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-lg login-btn w-full" id="login-btn">
+        <button type="submit" class="btn btn-login" id="login-btn">
           <i class="fa-solid fa-right-to-bracket"></i>
           Iniciar Sesión
         </button>
+
+        <div style="text-align:center;margin-top:0.75rem;">
+          <a href="/forgot-password.html" style="font-size:0.78rem;color:#6D6D6D;text-decoration:none;">
+            <i class="fa-solid fa-key" style="font-size:0.72rem;"></i> ¿Olvidaste tu contraseña?
+          </a>
+        </div>
       </form>
 
-      <!-- Hint -->
-      <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);text-align:center;">
-        <p style="font-size:0.72rem;color:var(--text-muted);">
-          <i class="fa-solid fa-shield-halved" style="color:var(--violet-light);"></i>
-          <!-- Usuarios por defecto: <code style="color:var(--violet-light);">admin/admin123</code>-->
-          <!-- &nbsp;|&nbsp; <code style="color:var(--emerald);">cajero/cajero123</code> -->
+      <!-- Register + Trial -->
+      <div class="login-footer">
+        <p class="register-text">
+          No tienes cuenta? <a href="/register.html" class="register-link">Regístrate gratis</a>
+        </p>
+        <p class="demo-text">
+          <i class="fa-solid fa-gift"></i>
+          7 días de demo con acceso completo
         </p>
       </div>
     </div>
@@ -83,10 +85,15 @@
 
   <div id="toast-container"></div>
 
-  <script src="js/api.js"></script>
+  <script src="js/config.js?v=1.0"></script>
+  <script src="js/api.js?v=1.1"></script>
+  <script src="js/keyboard.js?v=1.0"></script>
   <script>
     // Redirect if already logged in
-    if (isLoggedIn()) window.location.href = '/pos.html';
+    if (isLoggedIn()) {
+      const u = getUser();
+      window.location.href = u.role === 'superadmin' ? '/superadmin.html' : '/pos.html';
+    }
 
     const form = document.getElementById('login-form');
     const errBox = document.getElementById('login-error');
@@ -115,9 +122,20 @@
       try {
         const data = await api.post('/auth/login', { username, password });
         saveSession(data.token, data.user);
-        showToast(`¡Bienvenido, ${data.user.name}!`, 'success', 1500);
+
+        // Store trial info for dashboard banner
+        if (data.company_status) {
+          localStorage.setItem('pos_company_status', data.company_status);
+          localStorage.setItem('pos_trial_days', data.trial_days_left ?? '');
+        }
+
+        let welcomeMsg = `¡Bienvenido, ${data.user.name}!`;
+        if (data.company_status === 'pending' && data.trial_days_left !== null) {
+          welcomeMsg += ` (Demo: ${data.trial_days_left} dias restantes)`;
+        }
+        showToast(welcomeMsg, 'success', 2000);
         setTimeout(() => {
-          window.location.href = '/pos.html';
+          window.location.href = data.user.role === 'superadmin' ? '/superadmin.html' : '/pos.html';
         }, 600);
       } catch (err) {
         errMsg.textContent = err.message;

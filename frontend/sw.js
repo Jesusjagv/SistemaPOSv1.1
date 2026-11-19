@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-vzla-cache-v2';
+const CACHE_NAME = 'pos-vzla-cache-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -10,6 +10,7 @@ const ASSETS_TO_CACHE = [
   '/css/main.css',
   '/css/pos.css',
   '/js/api.js',
+  '/js/keyboard.js',
   '/js/pos.js',
   '/js/products.js',
   '/js/customers.js',

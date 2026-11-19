@@ -1,188 +1,301 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reportes — Sistema POS</title>
-  <link rel="stylesheet" href="css/main.css">
-  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/main.css?v=1.0">
+  <link rel="stylesheet" href="css/dashboard.css?v=1.0">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="js/theme.js"></script>
+  <script src="js/theme.js?v=1.0"></script>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#8b5cf6">
+  <meta name="theme-color" content="#0B2545">
   <link rel="apple-touch-icon" href="img/icon.svg">
   <!-- SheetJS for Excel Export -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
+
 <body>
-<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+  <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
-<div class="app-shell">
-  <header class="app-header">
-    <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
-      <i class="fa-solid fa-bars"></i>
-    </button>
-    <div class="app-logo"><div class="logo-icon">🏪</div><span>POS Venezuela</span></div>
-    <div class="bcv-badge"><span class="bcv-flag">🇻🇪</span><span>BCV: 1$ = <strong id="bcv-rate">--</strong> Bs</span><div class="bcv-pulse"></div></div>
-    <div class="header-spacer"></div>
-    
-    <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema" style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
-      <i id="theme-icon" class="fa-solid fa-moon"></i>
-    </button>
+  <div class="app-shell">
+    <header class="app-header">
+      <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="app-logo">
+        <div class="logo-icon">🏪</div><span>KalyPOS</span>
+      </div>
+      <div class="bcv-badge"><span class="bcv-flag">🇻🇪</span><span>BCV: 1$ = <strong id="bcv-rate">--</strong>
+          Bs</span>
+        <div class="bcv-pulse"></div>
+      </div>
+      <div class="header-spacer"></div>
 
-    <div class="header-user">
-      <div class="user-avatar" id="user-avatar">A</div>
-      <div><div id="user-name" style="font-weight:600;font-size:0.8rem;"></div><div class="user-role" id="user-role"></div></div>
-      <button class="btn btn-ghost btn-sm" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
-    </div>
-  </header>
-  <nav class="app-nav">
-    <span class="nav-section-label">Menú</span>
-    <a href="/pos.html"       class="nav-item"><i class="fa-solid fa-cash-register"></i> Punto de Venta</a>
-    <a href="/products.html"  class="nav-item"><i class="fa-solid fa-box"></i> Productos</a>
-    <a href="/customers.html" class="nav-item"><i class="fa-solid fa-users"></i> Clientes</a>
-    <a href="/reports.html"   class="nav-item active"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
-    <div class="nav-bottom">
-      <button class="nav-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
-    </div>
-  </nav>
-  <main class="app-main">
-    <div class="page-header">
-      <div>
-        <div class="page-title"><i class="fa-solid fa-chart-bar" style="color:var(--violet-light);"></i> Reportes y Estadísticas</div>
-        <div class="page-subtitle">Análisis de ventas en tiempo real</div>
-      </div>
-      <div class="filters-bar" style="margin-bottom:0;">
-        <label style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap;">Desde:</label>
-        <input type="date" id="date-from" class="form-control" style="width:auto;min-width:130px;">
-        <label style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap;">Hasta:</label>
-        <input type="date" id="date-to"   class="form-control" style="width:auto;min-width:130px;">
-        <button class="btn btn-primary btn-sm" onclick="loadReports()">
-          <i class="fa-solid fa-rotate"></i> Actualizar
-        </button>
-      </div>
-    </div>
-
-    <!-- Metric cards -->
-    <div class="stats-grid stats-grid-4">
-      <div class="metric-card">
-        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem;">Ventas Totales</div>
-        <div class="metric-value" id="m-count">--</div>
-      </div>
-      <div class="metric-card">
-        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem;">Ingresos USD</div>
-        <div class="metric-value" id="m-usd" style="color:var(--usd-color);">--</div>
-        <div class="metric-sub" id="m-bs">--</div>
-      </div>
-      <div class="metric-card">
-        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem;">IVA Cobrado</div>
-        <div class="metric-value" id="m-tax" style="color:#fb7185;">--</div>
-      </div>
-      <div class="metric-card">
-        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem;">Ticket Promedio</div>
-        <div class="metric-value" id="m-avg" style="color:var(--violet-light);">--</div>
-      </div>
-    </div>
-
-    <!-- Charts row -->
-    <div class="content-grid-2" style="margin-bottom:1.25rem;">
-      <div class="card">
-        <div class="card-title"><i class="fa-solid fa-chart-line" style="color:var(--violet-light);"></i> Ventas por Día</div>
-        <div class="chart-container"><canvas id="daily-chart"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-title"><i class="fa-solid fa-chart-pie" style="color:var(--emerald);"></i> Métodos de Pago</div>
-        <div class="chart-container"><canvas id="payment-chart"></canvas></div>
-      </div>
-    </div>
-
-    <!-- Products + inventory -->
-    <div class="content-grid-2">
-      <div class="card">
-        <div class="card-title"><i class="fa-solid fa-trophy" style="color:var(--amber);"></i> Productos Más Vendidos</div>
-        <div id="top-products-list"></div>
-      </div>
-      <div class="card">
-        <div class="card-title"><i class="fa-solid fa-triangle-exclamation" style="color:var(--rose);"></i> Stock Bajo</div>
-        <div id="low-stock-list"></div>
-      </div>
-    </div>
-
-    <!-- Sales history -->
-    <div class="card" style="margin-top:1.25rem;padding:0;">
-      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-        <div class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-receipt" style="color:var(--sky);"></i> Historial de Ventas</div>
-        <div style="display:flex; gap:0.5rem;">
-          <button class="btn btn-outline btn-sm" onclick="downloadSalesCSV()" id="btn-download-sales" disabled>
-            <i class="fa-solid fa-file-csv"></i> Resumen CSV
-          </button>
-          <button class="btn btn-outline btn-sm" onclick="downloadDetailedSalesExcel()" id="btn-download-detailed" disabled style="border-color:var(--violet-light); color:var(--violet-light);">
-            <i class="fa-solid fa-file-excel"></i> Detalle Excel
-          </button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema"
+        style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
+        <i id="theme-icon" class="fa-solid fa-moon"></i>
+      </button>
+      <nav class="header-nav-desktop" style="display:flex;gap:0.25rem;">
+        <a href="/pos.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-cash-register"></i> POS</a>
+        <a href="/products.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+        <a href="/customers.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-users"></i> Clientes</a>
+        <a href="/reports.html" class="nav-item active" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-chart-bar"></i> Reportes</a>
+        <a href="/debts.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-hand-holding-dollar"></i> Fiados</a>
+        <a href="/cash-sessions.html" class="nav-item"
+          style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;border-left:2px solid var(--emerald);background:rgba(16,185,129,0.08);"><i
+            class="fa-solid fa-cash-register" style="color:var(--emerald-light);"></i> Caja</a>
+      </nav>
+      <div class="header-user" onclick="toggleUserDropdown(event)" style="cursor:pointer; position:relative;">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div class="user-info-text">
+          <div id="user-name" style="font-weight:600;font-size:0.8rem;"></div>
+          <div class="user-role" id="user-role"></div>
+        </div>
+        <i class="fa-solid fa-chevron-down"
+          style="font-size:0.75rem; margin-left:0.25rem; color:rgba(255,255,255,0.6);"></i>
+        <!-- Dropdown -->
+        <div id="user-dropdown" class="user-dropdown hidden">
+          <a href="/settings.html" class="dropdown-item"><i class="fa-solid fa-gear"></i> Configuración</a>
+          <div class="dropdown-divider"></div>
+          <a href="#" class="dropdown-item text-danger" onclick="logout()"><i
+              class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</a>
         </div>
       </div>
-      <div class="table-wrapper" style="border:none;border-radius:0;">
-        <table>
-          <thead><tr><th>Factura</th><th>Cliente</th><th>Cajero</th><th>Método</th><th>Productos</th><th>Total USD</th><th>Total Bs</th><th>Estado</th><th>Fecha</th><th style="text-align:center;">Acciones</th></tr></thead>
-          <tbody id="sales-tbody"><tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Cargando...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </main>
-</div>
-
-<!-- Modal: Sale Detail -->
-<div class="modal-overlay hidden" id="sale-detail-modal" onclick="closeOnOverlayClick(event)">
-  <div class="modal" style="width:min(90vw, 700px);">
-    <div class="modal-header">
-      <div class="modal-title"><i class="fa-solid fa-receipt" style="color:var(--sky);"></i> Detalle de Venta <span id="sd-number" style="font-size:0.85em;color:var(--text-muted);font-family:monospace;margin-left:0.5rem;"></span></div>
-      <button class="btn-close" onclick="closeModal('sale-detail-modal')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="modal-body">
-      <div style="display:flex;justify-content:space-between;margin-bottom:1rem;font-size:0.85rem;">
+    </header>
+    <nav class="app-nav">
+      <span class="nav-section-label">Menú</span>
+      <a href="/pos.html" class="nav-item"><i class="fa-solid fa-cash-register"></i> POS</a>
+      <a href="/products.html" class="nav-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+      <a href="/customers.html" class="nav-item"><i class="fa-solid fa-users"></i> Clientes</a>
+      <a href="/debts.html" class="nav-item nav-fiados-link"><i class="fa-solid fa-hand-holding-dollar"></i> Fiados</a>
+      <a href="/cash-sessions.html" class="nav-item nav-caja-link"><i class="fa-solid fa-cash-register"
+          style="color:var(--emerald-light);"></i> Caja</a>
+      <a href="/reports.html" class="nav-item active"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
+    </nav>
+    <main class="app-main">
+      <div class="page-header">
         <div>
-          <div><strong>Cliente:</strong> <span id="sd-customer"></span></div>
-          <div><strong>Cajero:</strong> <span id="sd-user"></span></div>
-          <div><strong>Fecha:</strong> <span id="sd-date"></span></div>
+          <div class="page-title"><i class="fa-solid fa-chart-bar" style="color:var(--violet-light);"></i> Reportes y
+            Estadísticas</div>
+          <div class="page-subtitle">Análisis de ventas en tiempo real</div>
         </div>
-        <div style="text-align:right;">
-          <div><strong>Método:</strong> <span id="sd-method" class="badge badge-blue"></span></div>
-          <div style="margin-top:0.25rem;"><strong>Estado:</strong> <span id="sd-status"></span></div>
-        </div>
-      </div>
-      <div class="table-wrapper" style="max-height:250px;overflow-y:auto;margin-bottom:1rem;border-radius:var(--radius-sm);">
-        <table style="margin:0;">
-          <thead style="position:sticky;top:0;z-index:1;"><tr><th>Producto</th><th>Cant.</th><th>Desc.</th><th>Precio Und.</th><th>Total USD</th><th>Total Bs</th></tr></thead>
-          <tbody id="sd-items"></tbody>
-        </table>
-      </div>
-      <div style="display:flex;justify-content:flex-end;gap:1.5rem;font-size:0.9rem;">
-        <div style="text-align:right;">
-          <div style="color:var(--text-muted);margin-bottom:0.25rem;">Subtotal:</div>
-          <div style="color:var(--text-muted);margin-bottom:0.25rem;">Descuento Global:</div>
-          <div style="color:var(--text-muted);margin-bottom:0.25rem;">IVA:</div>
-          <strong style="font-size:1.1rem;color:var(--usd-color);">Total:</strong>
-        </div>
-        <div style="text-align:right;">
-          <div id="sd-subtotal" style="margin-bottom:0.25rem;font-family:monospace;"></div>
-          <div id="sd-discount" style="color:#fb7185;margin-bottom:0.25rem;font-family:monospace;"></div>
-          <div id="sd-tax" style="margin-bottom:0.25rem;font-family:monospace;"></div>
-          <strong id="sd-total" style="font-size:1.1rem;color:var(--text-primary);font-family:monospace;"></strong>
+        <div class="filters-bar" style="margin-bottom:0;">
+          <div class="period-tabs">
+            <button class="period-tab" onclick="applyDatePreset('today')">Hoy</button>
+            <button class="period-tab" onclick="applyDatePreset('yesterday')">Ayer</button>
+            <button class="period-tab" onclick="applyDatePreset('this_week')">Semana</button>
+            <button class="period-tab" onclick="applyDatePreset('this_month')">Mes</button>
+            <button class="period-tab" onclick="applyDatePreset('last_month')">Mes Ant.</button>
+            <button class="period-tab" onclick="applyDatePreset('last_7')">7 días</button>
+            <button class="period-tab" onclick="applyDatePreset('last_30')">30 días</button>
+          </div>
+          <label class="text-sm text-muted" style="white-space:nowrap;">Desde:</label>
+          <input type="date" id="date-from" class="form-control" style="width:auto;min-width:130px;">
+          <label class="text-sm text-muted" style="white-space:nowrap;">Hasta:</label>
+          <input type="date" id="date-to" class="form-control" style="width:auto;min-width:130px;">
+          <button class="btn btn-primary btn-sm" onclick="loadReports()">
+            <i class="fa-solid fa-rotate"></i> Actualizar
+          </button>
+          <button class="btn btn-sm" onclick="openAssistantModal()"
+            style="background:var(--blue-gradient, linear-gradient(135deg, #1d4ed8, #3b82f6));color:white;border:none;">
+            <i class="fa-solid fa-robot"></i> Asistente IA
+          </button>
         </div>
       </div>
-      <div style="text-align:right;font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;" id="sd-total-bs"></div>
-      <div class="modal-footer" style="padding:1rem 0 0 0; border-top:1px solid var(--border); margin-top:1.5rem; display:flex; justify-content:flex-end;">
-        <button class="btn btn-primary" id="btn-modal-download-excel">
-          <i class="fa-solid fa-file-excel"></i> Descargar Excel
-        </button>
+
+      <!-- Metric cards -->
+      <div class="stats-grid stats-grid-4">
+        <div class="metric-card">
+          <div class="metric-label">Ventas Totales</div>
+          <div class="metric-value" id="m-count">--</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ingresos USD</div>
+          <div class="metric-value" id="m-usd" style="color:var(--usd-color);">--</div>
+          <div class="metric-sub" id="m-bs">--</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">IVA Cobrado</div>
+          <div class="metric-value" id="m-tax" style="color:#fb7185;">--</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ticket Promedio</div>
+          <div class="metric-value" id="m-avg" style="color:var(--violet-light);">--</div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="content-grid-2" style="margin-bottom:1.25rem;">
+        <div class="card">
+          <div class="card-title" id="daily-chart-title"><i class="fa-solid fa-chart-line"
+              style="color:var(--violet-light);"></i> Ventas por Día</div>
+          <div class="chart-container" id="daily-chart-container">
+            <div id="daily-chart-skeleton" class="skeleton-chart" style="display:none;"></div>
+            <div id="daily-chart-empty" class="empty-state" style="display:none;"></div>
+            <canvas id="daily-chart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fa-solid fa-chart-pie" style="color:var(--emerald);"></i> Métodos de Pago
+          </div>
+          <div class="chart-container"><canvas id="payment-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Products + inventory -->
+      <div class="content-grid-2">
+        <div class="card">
+          <div class="card-title"><i class="fa-solid fa-trophy" style="color:var(--amber);"></i> Productos Más Vendidos
+          </div>
+          <div id="top-products-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fa-solid fa-triangle-exclamation" style="color:var(--rose);"></i> Stock Bajo
+          </div>
+          <div id="low-stock-list"></div>
+        </div>
+      </div>
+
+      <!-- Sales history -->
+      <div class="card" id="sales-section" style="margin-top:1.25rem;padding:0;">
+        <div class="card-header-row">
+          <div class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-receipt" style="color:var(--sky);"></i>
+            Historial de Ventas</div>
+          <div class="flex gap-2">
+            <button class="btn btn-outline btn-sm" onclick="downloadSalesCSV()" id="btn-download-sales" disabled>
+              <i class="fa-solid fa-file-csv"></i> Resumen CSV
+            </button>
+            <button class="btn btn-outline btn-sm btn-violet" onclick="downloadDetailedSalesExcel()"
+              id="btn-download-detailed" disabled>
+              <i class="fa-solid fa-file-excel"></i> Detalle Excel
+            </button>
+          </div>
+        </div>
+        <div class="table-wrapper" style="border:none;border-radius:0;">
+          <table>
+            <thead>
+              <tr>
+                <th>Factura</th>
+                <th>Cliente</th>
+                <th>Cajero</th>
+                <th>Método</th>
+                <th>Productos</th>
+                <th>Total USD</th>
+                <th>Total Bs</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="sales-tbody">
+              <tr>
+                <td colspan="8" class="text-center" style="padding:2rem;color:var(--text-muted);">Cargando...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: Sale Detail -->
+  <div class="modal-overlay hidden" id="sale-detail-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal" style="width:min(90vw, 700px);">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-solid fa-receipt" style="color:var(--sky);"></i> Detalle de Venta <span
+            id="sd-number"
+            style="font-size:0.85em;color:var(--text-muted);font-family:monospace;margin-left:0.5rem;"></span></div>
+        <button class="btn-close" onclick="closeModal('sale-detail-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="sd-header">
+          <div>
+            <div><strong>Cliente:</strong> <span id="sd-customer"></span></div>
+            <div><strong>Cajero:</strong> <span id="sd-user"></span></div>
+            <div><strong>Fecha:</strong> <span id="sd-date"></span></div>
+          </div>
+          <div class="text-right">
+            <div><strong>Método:</strong> <span id="sd-method" class="badge badge-blue"></span></div>
+            <div class="mt-2"><strong>Estado:</strong> <span id="sd-status"></span></div>
+          </div>
+        </div>
+        <div class="table-wrapper"
+          style="max-height:250px;overflow-y:auto;margin-bottom:1rem;border-radius:var(--radius-sm);">
+          <table style="margin:0;">
+            <thead style="position:sticky;top:0;z-index:1;">
+              <tr>
+                <th>Producto</th>
+                <th>Cant.</th>
+                <th>Desc.</th>
+                <th>Precio Und.</th>
+                <th>Total USD</th>
+                <th>Total Bs</th>
+              </tr>
+            </thead>
+            <tbody id="sd-items"></tbody>
+          </table>
+        </div>
+        <div class="sd-totals">
+          <div class="sd-totals-label">
+            <div>Subtotal:</div>
+            <div>Descuento Global:</div>
+            <div>IVA:</div>
+            <strong class="sd-total-final">Total:</strong>
+          </div>
+          <div class="sd-totals-value">
+            <div id="sd-subtotal"></div>
+            <div id="sd-discount" style="color:#fb7185;"></div>
+            <div id="sd-tax"></div>
+            <strong id="sd-total" style="font-size:1.1rem;color:var(--text-primary);font-family:monospace;"></strong>
+          </div>
+        </div>
+        <div class="sd-bs-line" id="sd-total-bs"></div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="btn-modal-download-excel">
+            <i class="fa-solid fa-file-excel"></i> Descargar Excel
+          </button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<div id="toast-container"></div>
-<script src="js/api.js"></script>
-<script src="js/reports.js"></script>
+  <!-- Modal: Asistente IA -->
+  <div class="modal-overlay hidden" id="assistant-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal"
+      style="width:min(95vw,600px);max-height:85vh;display:flex;flex-direction:column;background:var(--bg-card);border:1px solid #1e3a8a;box-shadow:0 10px 30px -10px rgba(29,78,216,0.3);">
+      <div class="modal-header" style="border-bottom:1px solid #1e3a8a;flex-shrink:0;">
+        <div class="modal-title" style="color:#60a5fa;"><i class="fa-solid fa-robot"></i> Asistente de Negocios</div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <button class="btn-close" onclick="clearChatHistory()" title="Limpiar conversación"
+            style="color:#f59e0b;border:1px solid #f59e0b33;border-radius:6px;padding:4px 8px;background:transparent;cursor:pointer;"><i
+              class="fa-solid fa-trash"></i></button>
+          <button class="btn-close" onclick="closeModal('assistant-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div id="ai-chat-messages"
+        style="flex:1;overflow-y:auto;padding:1rem 1.5rem;display:flex;flex-direction:column;gap:0.75rem;"></div>
+      <div style="border-top:1px solid #1e3a8a;padding:0.75rem 1.5rem;display:flex;gap:0.5rem;flex-shrink:0;">
+        <input id="ai-chat-input" class="form-control" placeholder="Pregúntame sobre tu negocio..." style="flex:1;"
+          onkeydown="if(event.key==='Enter')sendChatMessage()">
+        <button class="btn btn-primary" onclick="sendChatMessage()" id="ai-send-btn"><i
+            class="fa-solid fa-paper-plane"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="js/config.js?v=1.0"></script>
+  <script src="js/api.js?v=1.1"></script>
+  <script src="js/keyboard.js?v=1.0"></script>
+  <script src="js/reports.js?v=1.0"></script>
 </body>
+
 </html>

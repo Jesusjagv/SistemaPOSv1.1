@@ -9,3 +9,9 @@ pymysql==1.1.0
 cryptography==42.0.5
 python-dotenv==1.0.0
 gunicorn==21.2.0
+waitress==3.0.2
+
+pywebview==5.4
+pyinstaller==6.11.1
+
+pytest==8.3.4

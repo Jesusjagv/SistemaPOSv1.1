@@ -1,103 +1,184 @@
-/* ================================================
-   Dashboard / Admin Pages Styles
+﻿/* ================================================
+   Dashboard / Admin Pages Styles — v2.0
    ================================================ */
 
-/* Reusable grid layouts */
-.content-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
-}
-.content-grid-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 1.25rem;
-}
+/* ── Reusable grids ─────────────────────────────── */
+.content-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.content-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; }
 @media (max-width: 768px) {
   .content-grid-2, .content-grid-3 { grid-template-columns: 1fr; }
 }
 
-/* ── Stock indicator ─────────────────────────────── */
-.stock-bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-}
-.stock-bar {
-  flex: 1;
-  height: 4px;
-  background: var(--border);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-.stock-bar-fill {
-  height: 100%;
-  border-radius: 9999px;
-  transition: var(--transition);
-}
+/* ── Stock bar ───────────────────────────────────── */
+.stock-bar-wrap { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
+.stock-bar { flex: 1; height: 4px; background: var(--border); border-radius: 0px; overflow: hidden; }
+.stock-bar-fill { height: 100%; border-radius: 0px; transition: var(--transition); }
 
-/* ── Product form image ──────────────────────────── */
+/* ── Product form image placeholder ─────────────── */
 .img-placeholder {
   width: 80px; height: 80px;
   background: var(--bg-input);
-  border: 2px dashed var(--border);
+  border: 2px dashed var(--border-light);
   border-radius: var(--radius-lg);
   display: flex; align-items: center; justify-content: center;
-  color: var(--text-muted);
-  font-size: 1.5rem;
-  cursor: pointer;
-  transition: var(--transition);
+  color: var(--text-muted); font-size: 1.5rem;
+  cursor: pointer; transition: var(--transition);
 }
-.img-placeholder:hover { border-color: var(--violet); }
+.img-placeholder:hover { border-color: var(--green); color: var(--green); }
 
-/* ── Chart container ─────────────────────────────── */
-.chart-container {
-  position: relative;
-  height: 240px;
+/* ── Chart containers ───────────────────────────── */
+.chart-container { position: relative; height: 300px; padding: 0.5rem 0.75rem; overflow: visible; }
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0px;
+  overflow: hidden;
 }
+.chart-card-header {
+  padding: 1rem 1.35rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.chart-card-title {
+  font-size: 0.85rem; font-weight: 700;
+  color: var(--text-primary);
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.chart-card-sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
 
 /* ── Filters bar ─────────────────────────────────── */
 .filters-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.25rem;
+  display: flex; align-items: center;
+  gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem;
 }
 
-/* ── Product table actions ───────────────────────── */
+/* ── Table actions (hover reveal) ─────────────────── */
 .action-group {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: flex; align-items: center; gap: 0.3rem;
+  opacity: 0; transition: opacity 0.2s ease;
 }
+tr:hover .action-group { opacity: 1; }
 
-/* ── Report period selector ──────────────────────── */
+/* ── Period tabs ─────────────────────────────────── */
 .period-tabs {
   display: flex;
   background: var(--bg-input);
-  border-radius: var(--radius-md);
-  padding: 2px;
-  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 0px;
+  padding: 3px; gap: 2px;
 }
 .period-tab {
-  padding: 0.3rem 0.75rem;
-  border-radius: calc(var(--radius-md) - 2px);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--text-muted);
+  padding: 0.3rem 0.8rem;
+  border-radius: 0px;
+  font-size: 0.74rem; font-weight: 600;
+  cursor: pointer; color: var(--text-muted);
   transition: var(--transition);
-  border: none;
-  background: transparent;
+  border: none; background: transparent;
+  white-space: nowrap;
 }
+.period-tab:hover:not(.active) { background: var(--bg-card-hover); color: var(--text-secondary); }
 .period-tab.active {
-  background: var(--violet);
+  background: var(--green);
   color: white;
+  box-shadow: 0 1px 4px rgba(25,135,84,0.4);
 }
 
-/* ── Customer history ───────────────────────────── */
+/* ── Metric cards (Reports) ─────────────────────── */
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0px;
+  padding: 1.35rem;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+}
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--metric-accent, var(--green));
+}
+.metric-card:hover { border-color: var(--metric-accent, var(--green)); box-shadow: var(--shadow-sm); }
+.metric-label {
+  font-size: 0.68rem; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  font-weight: 700; margin-bottom: 0.4rem;
+}
+.metric-value {
+  font-size: 1.75rem; font-weight: 800;
+  color: var(--text-primary); line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.metric-sub { font-size: 0.76rem; color: var(--bs-color); font-weight: 600; margin-top: 0.2rem; }
+.metric-trend {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  font-size: 0.7rem; font-weight: 600; margin-top: 0.4rem;
+}
+.metric-trend.up   { color: var(--emerald-light); }
+.metric-trend.down { color: #fb7185; }
+
+/* ── Report list items ───────────────────────────── */
+.report-list-item {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.report-list-item:last-child { border-bottom: none; }
+.report-list-item:hover { background: rgba(25,135,84,0.03); margin: 0 -0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; border-radius: 0px; }
+
+.report-rank {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--green-glow);
+  color: var(--green);
+  font-size: 0.7rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.report-rank.rank-1 { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.report-rank.rank-2 { background: rgba(148,163,184,0.12); color: #94a3b8; }
+.report-rank.rank-3 { background: rgba(214,158,46,0.12); color: #d97706; }
+
+.report-item-body { flex: 1; min-width: 0; }
+.report-item-name { font-size: 0.83rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.report-item-bar  { display: flex; align-items: center; gap: 0.5rem; margin-top: 3px; }
+.report-item-track { flex: 1; height: 3px; background: var(--border); border-radius: 4px; }
+.report-item-fill  { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--green), var(--green-dark)); }
+.report-item-stats { text-align: right; flex-shrink: 0; }
+.report-item-qty   { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.report-item-usd   { font-size: 0.7rem; color: var(--usd-color); font-variant-numeric: tabular-nums; }
+
+/* ── Low stock items ─────────────────────────────── */
+.stock-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+}
+.stock-item:last-child { border-bottom: none; }
+.stock-item-name { font-size: 0.83rem; font-weight: 600; }
+.stock-item-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem; }
+
+/* ── Sales history ───────────────────────────────── */
+.sale-row { cursor: pointer; transition: background 0.15s; }
+.sale-row:hover { background: rgba(25,135,84,0.05); }
+.sale-number { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--green); }
+.sale-date   { font-size: 0.75rem; color: var(--text-muted); }
+.sale-row-clickable { cursor: pointer; }
+.sale-row-clickable:hover td { color: var(--green); }
+
+/* ── Sale detail modal ───────────────────────────── */
+.sd-header { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.85rem; }
+.sd-totals { display: flex; justify-content: flex-end; gap: 1.5rem; font-size: 0.9rem; }
+.sd-totals-label, .sd-totals-value { text-align: right; }
+.sd-totals-label div { color: var(--text-muted); margin-bottom: 0.25rem; }
+.sd-totals-value div { margin-bottom: 0.25rem; font-family: 'JetBrains Mono', monospace; }
+.sd-total-final { font-size: 1.1rem; color: var(--usd-color); font-weight: 700; }
+.sd-bs-line { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+/* ── Customer cards ──────────────────────────────── */
 .customer-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -106,138 +187,80 @@
 .customer-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.1rem;
-  transition: var(--transition);
+  border-radius: 0px;
+  padding: 1.2rem;
+  transition: var(--transition-spring);
 }
 .customer-card:hover {
-  border-color: var(--violet);
-  transform: translateY(-2px);
+  border-color: var(--green);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 .customer-card-avatar {
-  width: 42px; height: 42px;
-  background: linear-gradient(135deg, var(--violet), var(--violet-light));
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--green), var(--green-dark));
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 1rem;
-  margin-bottom: 0.75rem;
+  font-weight: 800; font-size: 1rem;
+  margin-bottom: 0.85rem;
+  color: white;
 }
-.customer-card-name {
-  font-weight: 700;
-  font-size: 0.9rem;
-  margin-bottom: 0.25rem;
-}
-.customer-card-doc {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-bottom: 0.5rem;
-}
-.customer-card-info {
-  display: flex; flex-direction: column; gap: 0.2rem;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-.customer-card-info i { width: 14px; text-align: center; }
-
-/* ── Sales history modal ──────────────────────────── */
-.sale-row-clickable {
-  cursor: pointer;
-}
-.sale-row-clickable:hover td { color: var(--violet-light); }
-
-/* ── Report metric cards ─────────────────────────── */
-.metric-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  text-align: center;
-}
-.metric-value {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-.metric-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
-.metric-sub   { font-size: 0.78rem; color: var(--bs-color); font-weight: 600; margin-top: 0.15rem; }
+.customer-card-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.2rem; }
+.customer-card-doc  { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+.customer-card-info { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; color: var(--text-secondary); }
+.customer-card-info i { width: 14px; text-align: center; color: var(--text-muted); }
 
 /* ── Users management ────────────────────────────── */
 .user-row-avatar {
-  width: 32px; height: 32px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 0.8rem;
+  font-weight: 800; font-size: 0.78rem;
 }
-.user-row-avatar.admin    { background: rgba(124,58,237,0.25); color: var(--violet-light); }
-.user-row-avatar.cashier  { background: rgba(16,185,129,0.2); color: var(--emerald-light); }
+.user-row-avatar.admin   { background: rgba(25,135,84,0.2);  color: var(--green); }
+.user-row-avatar.cashier { background: rgba(25,135,84,0.15); color: var(--green); }
 
-/* ── Page tabs ────────────────────────────────────── */
+/* ── Page tabs ───────────────────────────────────── */
 .page-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1.5rem;
-  gap: 0;
+  display: flex; border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem; gap: 0;
 }
 .page-tab {
-  padding: 0.6rem 1.25rem;
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
+  padding: 0.65rem 1.35rem; font-size: 0.83rem; font-weight: 600;
+  color: var(--text-muted); cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: var(--transition);
-  background: none;
-  border-top: none;
-  border-left: none;
-  border-right: none;
+  background: none; border-top: none; border-left: none; border-right: none;
+  letter-spacing: 0.01em;
 }
 .page-tab:hover { color: var(--text-secondary); }
-.page-tab.active { color: var(--violet-light); border-bottom-color: var(--violet); }
+.page-tab.active { color: var(--green); border-bottom-color: var(--green); }
 
-/* ── Dashboard Responsive ────────────────────────── */
+/* ── Responsive ──────────────────────────────────── */
+@media (max-width: 1024px) {
+  .chart-container { height: 260px; }
+}
+
 @media (max-width: 768px) {
-  .customer-card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  }
+  .customer-card-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .metric-card { padding: 1rem; }
+  .metric-value { font-size: 1.5rem; }
+  .filters-bar { flex-direction: column; align-items: stretch; }
+  .filters-bar > * { width: 100%; }
+  .period-tabs { width: 100%; justify-content: center; flex-wrap: wrap; }
+  .content-grid-2 { grid-template-columns: 1fr; }
+  .action-group { opacity: 1; } /* Always visible on touch devices */
+}
 
-  .metric-card {
-    padding: 1rem;
-  }
-  .metric-value {
-    font-size: 1.3rem;
-  }
-
-  .filters-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .filters-bar > * {
-    width: 100%;
-  }
-
-  .period-tabs {
-    width: 100%;
-    justify-content: center;
-  }
+@media (max-width: 576px) {
+  .chart-container { height: 220px; }
+  .customer-card-grid { grid-template-columns: 1fr; }
+  .metric-value { font-size: 1.35rem; }
+  .metric-label { font-size: 0.66rem; }
 }
 
 @media (max-width: 480px) {
-  .customer-card-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .customer-card {
-    padding: 0.85rem;
-  }
-
-  .metric-card {
-    padding: 0.85rem;
-  }
-  .metric-value {
-    font-size: 1.1rem;
-  }
-  .metric-label {
-    font-size: 0.7rem;
-  }
+  .customer-card { padding: 0.9rem; }
+  .metric-card { padding: 0.9rem; }
 }
+

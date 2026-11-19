@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fiados — Sistema POS</title>
+  <link rel="stylesheet" href="css/main.css?v=1.0">
+  <link rel="stylesheet" href="css/dashboard.css?v=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="js/theme.js?v=1.0"></script>
+</head>
+
+<body>
+  <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="app-logo">
+        <div class="logo-icon">🏪</div><span>KalyPOS</span>
+      </div>
+      <div class="bcv-badge"><span class="bcv-flag">🇻🇪</span><span>BCV: 1$ = <strong id="bcv-rate">--</strong>
+          Bs</span>
+        <div class="bcv-pulse"></div>
+      </div>
+      <div class="header-spacer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" title="Cambiar tema"
+        style="margin-right:0.5rem;border-radius:50%;width:32px;height:32px;padding:0;">
+        <i id="theme-icon" class="fa-solid fa-moon"></i>
+      </button>
+      <nav class="header-nav-desktop" style="display:flex;gap:0.25rem;">
+        <a href="/pos.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-cash-register"></i> POS</a>
+        <a href="/products.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+        <a href="/customers.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-users"></i> Clientes</a>
+        <a href="/reports.html" class="nav-item" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-chart-bar"></i> Reportes</a>
+        <a href="/debts.html" class="nav-item active" style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;"><i
+            class="fa-solid fa-hand-holding-dollar"></i> Fiados</a>
+        <a href="/cash-sessions.html" class="nav-item"
+          style="padding:0.4rem 0.7rem;margin:0;font-size:0.78rem;border-left:2px solid var(--emerald);background:rgba(16,185,129,0.08);"><i
+            class="fa-solid fa-cash-register" style="color:var(--emerald-light);"></i> Caja</a>
+      </nav>
+      <div class="header-user" onclick="toggleUserDropdown(event)" style="cursor:pointer; position:relative;">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div class="user-info-text">
+          <div id="user-name" style="font-weight:600;font-size:0.8rem;"></div>
+          <div class="user-role" id="user-role"></div>
+        </div>
+        <i class="fa-solid fa-chevron-down"
+          style="font-size:0.75rem; margin-left:0.25rem; color:rgba(255,255,255,0.6);"></i>
+        <!-- Dropdown -->
+        <div id="user-dropdown" class="user-dropdown hidden">
+          <a href="/settings.html" class="dropdown-item"><i class="fa-solid fa-gear"></i> Configuración</a>
+          <div class="dropdown-divider"></div>
+          <a href="#" class="dropdown-item text-danger" onclick="logout()"><i
+              class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <nav class="app-nav">
+      <span class="nav-section-label">Menú</span>
+      <a href="/pos.html" class="nav-item"><i class="fa-solid fa-cash-register"></i> POS</a>
+      <a href="/products.html" class="nav-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+      <a href="/customers.html" class="nav-item"><i class="fa-solid fa-users"></i> Clientes</a>
+      <a href="/debts.html" class="nav-item nav-fiados-link active"><i class="fa-solid fa-hand-holding-dollar"></i>
+        Fiados</a>
+      <a href="/cash-sessions.html" class="nav-item nav-caja-link"><i class="fa-solid fa-cash-register"
+          style="color:var(--emerald-light);"></i> Caja</a>
+      <a href="/reports.html" class="nav-item"><i class="fa-solid fa-chart-bar"></i> Reportes</a>
+    </nav>
+
+    <main class="app-main">
+      <div class="page-header">
+        <div>
+          <div class="page-title"><i class="fa-solid fa-hand-holding-dollar" style="color:var(--emerald-light);"></i>
+            Cuentas por Cobrar / Fiados</div>
+          <div class="page-subtitle">Administra las deudas y créditos de tus clientes</div>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <div class="search-bar">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="search-input" class="search-input" placeholder="Buscar deuda..."
+              oninput="filterDebts(this.value)">
+          </div>
+          <select id="status-filter" class="form-control" style="width:auto;padding:0.4rem 0.6rem;font-size:0.8rem;"
+            onchange="filterDebts()">
+            <option value="">Todas</option>
+            <option value="Pendiente">Pendientes</option>
+            <option value="Vencida">Vencidas</option>
+            <option value="Pagada">Pagadas</option>
+          </select>
+          <button class="btn btn-primary" onclick="openRegisterModal()">
+            <i class="fa-solid fa-plus"></i> Nueva Deuda
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid stats-grid-3" id="stats-grid">
+        <div class="stat-card">
+          <span class="stat-watermark"><i class="fa-solid fa-coins"></i></span>
+          <div class="stat-icon" style="background:rgba(16,185,129,0.2);color:var(--emerald-light);"><i
+              class="fa-solid fa-coins"></i></div>
+          <div class="stat-label">Total Adeudado</div>
+          <div class="stat-value" id="stat-total">$ --</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.15rem;" id="stat-total-bs">Bs --</div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-watermark"><i class="fa-solid fa-clock"></i></span>
+          <div class="stat-icon" style="background:rgba(245,158,11,0.2);color:#fbbf24;"><i
+              class="fa-solid fa-clock"></i></div>
+          <div class="stat-label">Pendientes</div>
+          <div class="stat-value" id="stat-pending">--</div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-watermark"><i class="fa-solid fa-exclamation-triangle"></i></span>
+          <div class="stat-icon" style="background:rgba(244,63,94,0.2);color:#fb7185;"><i
+              class="fa-solid fa-exclamation-triangle"></i></div>
+          <div class="stat-label">Vencidas</div>
+          <div class="stat-value" id="stat-overdue">--</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="card" style="padding:0;">
+        <div class="table-wrapper">
+          <table id="debts-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Concepto</th>
+                <th>Original</th>
+                <th>Saldo USD</th>
+                <th>Saldo Bs</th>
+                <th>Vence</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="debts-tbody">
+              <tr>
+                <td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">
+                  <div class="spinner"></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: Register Debt -->
+  <div class="modal-overlay hidden" id="register-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-solid fa-hand-holding-dollar" style="color:var(--emerald-light);"></i>
+          Registrar Nueva Deuda</div>
+        <button class="btn-close" onclick="closeModal('register-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">Cliente *</label>
+            <select id="reg-customer" class="form-control">
+              <option value="">Selecciona un cliente...</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Monto USD</label>
+            <input id="reg-amount-usd" type="number" step="0.01" min="0" class="form-control" placeholder="0.00"
+              oninput="calcBsFromUsd()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Monto Bs</label>
+            <input id="reg-amount-bs" type="number" step="0.01" min="0" class="form-control" placeholder="0.00"
+              oninput="calcUsdFromBs()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha de Vencimiento *</label>
+            <input id="reg-due-date" type="date" class="form-control">
+          </div>
+        </div>
+        <div id="reg-rate-info"
+          style="font-size:0.78rem;color:var(--text-muted);padding:0.25rem 0 0.5rem 0;text-align:center;"></div>
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label">Concepto</label>
+            <textarea id="reg-concept" class="form-control" rows="2"
+              placeholder="Ej: Compra de mercancía al crédito"></textarea>
+          </div>
+        </div>
+        <div id="reg-limit-info" style="font-size:0.78rem;color:var(--text-muted);padding:0.5rem 0;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('register-modal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="registerDebt()"><i class="fa-solid fa-save"></i> Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Detail + Payment -->
+  <div class="modal-overlay hidden" id="detail-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-solid fa-receipt" style="color:var(--emerald-light);"></i> Detalle de
+          Deuda</div>
+        <button class="btn-close" onclick="closeModal('detail-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" id="detail-body">
+        <!-- Injected by JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('detail-modal')">Cerrar</button>
+        <button class="btn btn-primary" id="detail-pay-btn" onclick="openPayModal()" style="display:none;">
+          <i class="fa-solid fa-dollar-sign"></i> Registrar Pago
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Payment -->
+  <div class="modal-overlay hidden" id="pay-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal" style="max-width:500px;">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-solid fa-dollar-sign" style="color:var(--emerald-light);"></i> Registrar
+          Abono</div>
+        <button class="btn-close" onclick="closeModal('pay-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div
+          style="font-size:0.85rem;margin-bottom:1rem;padding:0.5rem 0.75rem;background:rgba(16,185,129,0.1);border-radius:6px;">
+          Cliente: <strong id="pay-customer-name"></strong><br>
+          Saldo actual: <strong id="pay-current-balance"></strong>
+        </div>
+
+        <!-- Payment entry (repeatable) -->
+        <div id="payments-container">
+          <div class="payment-entry"
+            style="border:1px solid var(--border);border-radius:8px;padding:0.75rem;margin-bottom:0.75rem;">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Método de Pago *</label>
+                <select class="form-control payment-method" onchange="togglePaymentRef(this)">
+                  <option value="cash">Efectivo</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="pago_movil">Pago Móvil</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="mixed">Mixto USD/VES</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Monto USD</label>
+                <input type="number" step="0.01" min="0" class="form-control pay-usd" placeholder="0.00"
+                  oninput="calcUsdEquiv(this)">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Monto VES</label>
+                <input type="number" step="0.01" min="0" class="form-control pay-bs" placeholder="0.00"
+                  oninput="calcBsEquiv(this)">
+              </div>
+            </div>
+            <div class="form-row ref-fields" style="display:none;">
+              <div class="form-group">
+                <label class="form-label">Referencia *</label>
+                <input class="form-control pay-ref" placeholder="N° de referencia">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Banco Origen *</label>
+                <input class="form-control pay-bank-origin" placeholder="Ej: Banco Mercantil">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Banco Destino *</label>
+                <input class="form-control pay-bank-dest" placeholder="Ej: Banco de Venezuela">
+              </div>
+            </div>
+            <div class="pay-usd-equiv" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.35rem;"></div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline" onclick="addPaymentEntry()" style="width:100%;">
+          <i class="fa-solid fa-plus"></i> Agregar otro pago
+        </button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('pay-modal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitPayment()"><i class="fa-solid fa-check"></i> Registrar
+          Abono</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Reminder -->
+  <div class="modal-overlay hidden" id="reminder-modal" onclick="closeOnOverlayClick(event)">
+    <div class="modal" style="max-width:500px;">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-brands fa-whatsapp" style="color:#25D366;"></i> Recordatorio WhatsApp
+        </div>
+        <button class="btn-close" onclick="closeModal('reminder-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <textarea id="reminder-text" class="form-control" rows="6" readonly
+          style="font-family:monospace;font-size:0.82rem;"></textarea>
+        <div style="margin-top:0.75rem;">
+          <button class="btn btn-success" id="reminder-wa-btn" style="width:100%;" onclick="sendWhatsApp()">
+            <i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="js/config.js?v=1.0"></script>
+  <script src="js/api.js?v=1.1"></script>
+  <script src="js/keyboard.js?v=1.0"></script>
+  <script src="js/debts.js?v=1.1"></script>
+</body>
+
+</html>
