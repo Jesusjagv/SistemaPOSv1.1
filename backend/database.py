@@ -22,9 +22,9 @@ class PoolTimeoutError(Exception):
     """No se pudo obtener una conexión del pool en el tiempo esperado."""
     pass
 
-def _parse_db_url():
-    """Parse DATABASE_URL and return connection kwargs."""
-    db_url = os.getenv('DATABASE_URL')
+def _parse_db_url(db_url=None):
+    """Parse DATABASE_URL (o una URL dada) y devolver kwargs de conexión."""
+    db_url = db_url or os.getenv('DATABASE_URL')
     if not db_url:
         raise RuntimeError('DATABASE_URL not set in environment')
     parsed = urllib.parse.urlparse(db_url)
