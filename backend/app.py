@@ -108,16 +108,17 @@ if __name__ == '__main__':
     print("   SISTEMA POS v1.0 - Venezuela")
     print("=" * 55)
     init_db()
-    print(f"\n   Abre tu navegador en: http://localhost:5000\n")
+    port = int(os.getenv('PORT', '5000'))
+    print(f"\n   Abre tu navegador en: http://localhost:{port}\n")
     try:
         from waitress import serve
         threads = int(os.getenv('WAITRESS_THREADS', '16'))
-        print(f"   Servidor: Waitress (threads={threads})")
+        print(f"   Servidor: Waitress (threads={threads}, port={port})")
         # Confía en X-Forwarded-For solo si el peer es el proxy local
         # (por defecto 127.0.0.1; usar TRUSTED_PROXY='*' u otra IP si el
         # proxy está en otro host). Sin esto waitress borra el header y
         # el rate limit no vería la IP real del cliente.
-        serve_kwargs = dict(host='0.0.0.0', port=5000, threads=threads)
+        serve_kwargs = dict(host='0.0.0.0', port=port, threads=threads)
         trusted_proxy = os.getenv('TRUSTED_PROXY', '127.0.0.1').strip() or None
         if trusted_proxy:
             serve_kwargs['trusted_proxy'] = trusted_proxy
@@ -126,4 +127,4 @@ if __name__ == '__main__':
     except ImportError:
         print("   Modo desarrollo: Flask dev server (NO apto para produccion)")
         print("   Instala waitress: pip install waitress")
-        app.run(debug=False, host='0.0.0.0', port=5000, threaded=True)
+        app.run(debug=False, host='0.0.0.0', port=port, threaded=True)

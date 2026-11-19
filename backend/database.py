@@ -29,12 +29,18 @@ def _parse_db_url():
         raise RuntimeError('DATABASE_URL not set in environment')
     parsed = urllib.parse.urlparse(db_url)
     ssl_params = None
-    if 'ssl-mode=REQUIRED' in db_url:
+    needs_ssl = (
+        'ssl-mode=REQUIRED' in db_url
+        or 'ssl=true' in db_url.lower()
+        or 'tidbcloud.com' in (parsed.hostname or '')
+    )
+    if needs_ssl:
+        # TiDB Cloud exige TLS. certifi aporta el CA raíz (ISRG Root X1);
+        # PyMySQL valida cadena + hostname con ese CA.
+        import certifi
         ssl_params = {
-            'ssl': {
-                'ca': None,
-                'check_hostname': False
-            }
+            'ca': certifi.where(),
+            'check_hostname': True,
         }
     return {
         'host': parsed.hostname,
