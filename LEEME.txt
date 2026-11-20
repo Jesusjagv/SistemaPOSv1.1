@@ -1,0 +1,32 @@
+Sistema POS v1.1 — Edición Escritorio (offline-first)
+=====================================================
+
+REQUISITOS
+  Windows 10/11 con el runtime de WebView2 (ya viene en Windows actualizado).
+
+INSTALACIÓN / PRIMER USO
+  1. Extrae TODO el contenido de este ZIP en una carpeta propia,
+     por ejemplo:  C:\KalyPOS   (no usar "Archivos de programa").
+  2. Abre  SistemaPOS.exe  (doble clic).
+  3. Usuario:  admin     Contraseña:  admin123
+     (cámbiala desde Configuración después del primer ingreso).
+
+TUS DATOS
+  - Se guardan en la carpeta  data\  junto al programa (base SQLite local).
+  - NO borres la carpeta data\ ni el archivo .webview2_data\.
+  - Haz copias de seguridad de data\pos.db periódicamente.
+
+SINCRONIZACIÓN CON LA NUBE (opcional)
+  Funciona igual sin nube. Para sincronizar varias cajas con la nube:
+  1. Edita (o crea) el archivo  .env  en esta misma carpeta:
+
+       CLOUD_URL=https://tu-servidor.onrender.com
+       SYNC_USER=sync_tienda1
+       SYNC_PASSWORD=********
+       MACHINE_ID=CAJA1
+
+  2. MACHINE_ID (máx. 6 caracteres) identifica esta caja en la numeración.
+  3. Reinicia SistemaPOS.exe. La primera vez descarga los datos de la nube.
+
+SOPORTE
+  - Errores: revisa el archivo  desktop_error.log  en esta carpeta.

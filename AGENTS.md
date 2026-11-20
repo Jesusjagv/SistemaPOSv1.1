@@ -9,7 +9,7 @@ POS multi-tenant para Venezuela (precios en USD + tasa BCV en Bs). Flask + MySQL
 - **Backend real:** `backend/app.py` (incluye blueprints `cash_sessions` y `settings`).
 - **NO usar la raíz `app.py`:** es una copia vieja sin esos blueprints; `start.bat` lanza `python backend\app.py`.
 - Frontend estático en `frontend/` servido por el mismo Flask (static_folder). Sin build step ni framework JS.
-- Escritorio: `desktop.py` sirve el frontend en un HTTP local y abre `pywebview` apuntando a `http://localhost:5000`. Un solo lock de instancia (puerto 49152).
+- Escritorio: `desktop.py` arranca el backend Flask en proceso (waitress, solo `127.0.0.1:PORT`, default 5000) y abre `pywebview` contra él — frontend y API same-origin. Si ya hay un backend POS en el puerto (dev con `start.bat`), lo reutiliza. Defaults de env antes de importar el backend: `DATABASE_URL=sqlite:///.../data/pos.db` si falta; carga `.env` de la carpeta de la app. Lock de instancia única (puerto 49152).
 
 ## Comandos
 
@@ -26,8 +26,9 @@ Sistema POS.bat
 :: Un archivo / test:
 .venv\Scripts\python.exe -m pytest backend\tests\test_auth.py::TestLogin::test_success_admin -v
 
-:: Empaquetado Windows
+:: Empaquetado Windows (exe portable + ZIP para clientes)
 build_desktop.bat
+::  -> dist\SistemaPOS\SistemaPOS.exe  y  SistemaPOS-v1.1.zip
 ```
 
 No hay lint, typecheck ni CI configurados. Orden de verificación: solo pytest.
@@ -94,4 +95,5 @@ Tablas con `company_id`: users, products, customers, sales, categories, cash_ses
 - Secretos Flask/JWT hardcodeados en `backend/app.py`; no copiar a producción real sin cambiar.
 - `.env` y `.webview2_data/` no deben commitearse (webview2 generó mucho ruido en el staging de git).
 - `backend/pos.db` es residuo de una versión vieja; el modo offline usa la ruta que diga `DATABASE_URL` (`sqlite:///...`).
+- `backend/__init__.py` existe para que PyInstaller empaquete `backend.app`. Con él, pytest importa los tests como `backend.tests.*` y `conftest.py` DEBE importar la app con `from backend.app import app` explícito (el orden de sys.path no distingue la copia vieja de la raíz).
 - Python 3.13 en `.venv`. Dependencias pinneadas en `requirements.txt` (Flask 3, waitress, pywebview, pyinstaller, pytest).

@@ -1178,29 +1178,32 @@ def init_db():
     cursor.execute("SELECT COUNT(*) as count FROM categories")
     if cursor.fetchone()['count'] == 0:
         categories = [
-            ('Alimentos', '#f59e0b'),
-            ('Bebidas', '#3b82f6'),
-            ('Limpieza', '#10b981'),
-            ('Cuidado Personal', '#ec4899'),
-            ('Electrónica', '#6366f1'),
-            ('Papelería', '#f97316'),
-            ('Otros', '#6b7280'),
+            ('Alimentos', '#f59e0b', default_company_id),
+            ('Bebidas', '#3b82f6', default_company_id),
+            ('Limpieza', '#10b981', default_company_id),
+            ('Cuidado Personal', '#ec4899', default_company_id),
+            ('Electrónica', '#6366f1', default_company_id),
+            ('Papelería', '#f97316', default_company_id),
+            ('Otros', '#6b7280', default_company_id),
         ]
-        cursor.executemany("INSERT INTO categories (name, color) VALUES (%s, %s)", categories)
+        cursor.executemany(
+            "INSERT INTO categories (name, color, company_id) VALUES (%s, %s, %s)",
+            categories)
 
     # Sample products
     cursor.execute("SELECT COUNT(*) as count FROM products")
     if cursor.fetchone()['count'] == 0:
         sample_products = [
-            ('Agua Mineral 600ml',  'P001', 1, 0.50, 0.30, 100, 10),
-            ('Refresco 350ml',      'P002', 2, 0.75, 0.45, 80,  10),
-            ('Pan de Sandwich',     'P003', 1, 1.20, 0.80, 50,  5),
-            ('Detergente 1kg',      'P004', 3, 2.50, 1.80, 30,  5),
-            ('Shampoo 400ml',       'P005', 4, 3.00, 2.00, 25,  5),
-            ('Cuaderno 100 hojas',  'P006', 6, 1.50, 0.90, 40,  5),
+            ('Agua Mineral 600ml',  'P001', 1, 0.50, 0.30, 100, 10, default_company_id),
+            ('Refresco 350ml',      'P002', 2, 0.75, 0.45, 80,  10, default_company_id),
+            ('Pan de Sandwich',     'P003', 1, 1.20, 0.80, 50,  5, default_company_id),
+            ('Detergente 1kg',      'P004', 3, 2.50, 1.80, 30,  5, default_company_id),
+            ('Shampoo 400ml',       'P005', 4, 3.00, 2.00, 25,  5, default_company_id),
+            ('Cuaderno 100 hojas',  'P006', 6, 1.50, 0.90, 40,  5, default_company_id),
         ]
         cursor.executemany(
-            "INSERT INTO products (name, code, category_id, price_usd, cost_usd, stock, min_stock) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            "INSERT INTO products (name, code, category_id, price_usd, cost_usd, "
+            "stock, min_stock, company_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
             sample_products
         )
 
@@ -1625,25 +1628,28 @@ def init_local_db():
             )
         if conn.execute("SELECT COUNT(*) as count FROM categories").fetchone()['count'] == 0:
             conn.executemany(
-                "INSERT INTO categories (name, color) VALUES (%s, %s)",
+                "INSERT INTO categories (name, color, company_id) VALUES (%s, %s, %s)",
                 [
-                    ('Alimentos', '#f59e0b'), ('Bebidas', '#3b82f6'),
-                    ('Limpieza', '#10b981'), ('Cuidado Personal', '#ec4899'),
-                    ('Electrónica', '#6366f1'), ('Papelería', '#f97316'),
-                    ('Otros', '#6b7280'),
+                    ('Alimentos', '#f59e0b', default_company_id),
+                    ('Bebidas', '#3b82f6', default_company_id),
+                    ('Limpieza', '#10b981', default_company_id),
+                    ('Cuidado Personal', '#ec4899', default_company_id),
+                    ('Electrónica', '#6366f1', default_company_id),
+                    ('Papelería', '#f97316', default_company_id),
+                    ('Otros', '#6b7280', default_company_id),
                 ]
             )
         if conn.execute("SELECT COUNT(*) as count FROM products").fetchone()['count'] == 0:
             conn.executemany(
                 "INSERT INTO products (name, code, category_id, price_usd, cost_usd, "
-                "stock, min_stock) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                "stock, min_stock, company_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
                 [
-                    ('Agua Mineral 600ml', 'P001', 1, 0.50, 0.30, 100, 10),
-                    ('Refresco 350ml', 'P002', 2, 0.75, 0.45, 80, 10),
-                    ('Pan de Sandwich', 'P003', 1, 1.20, 0.80, 50, 5),
-                    ('Detergente 1kg', 'P004', 3, 2.50, 1.80, 30, 5),
-                    ('Shampoo 400ml', 'P005', 4, 3.00, 2.00, 25, 5),
-                    ('Cuaderno 100 hojas', 'P006', 6, 1.50, 0.90, 40, 5),
+                    ('Agua Mineral 600ml', 'P001', 1, 0.50, 0.30, 100, 10, default_company_id),
+                    ('Refresco 350ml', 'P002', 2, 0.75, 0.45, 80, 10, default_company_id),
+                    ('Pan de Sandwich', 'P003', 1, 1.20, 0.80, 50, 5, default_company_id),
+                    ('Detergente 1kg', 'P004', 3, 2.50, 1.80, 30, 5, default_company_id),
+                    ('Shampoo 400ml', 'P005', 4, 3.00, 2.00, 25, 5, default_company_id),
+                    ('Cuaderno 100 hojas', 'P006', 6, 1.50, 0.90, 40, 5, default_company_id),
                 ]
             )
         print("Base de datos local inicializada correctamente")

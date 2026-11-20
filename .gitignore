@@ -37,7 +37,11 @@ venv.bak/
 .flaskenv
 
 # Database
-# (MySQL only — no SQLite files)
+# (MySQL en nube/dev; SQLite del escritorio en data/)
+data/
+*.db
+*.db-wal
+*.db-shm
 
 # IDEs
 .vscode/
@@ -57,8 +61,11 @@ desktop_error.log
 stderr.txt
 *.log
 
-# Residuos SQLite (el sistema usa MySQL)
+# Residuos SQLite (el sistema usa MySQL; el escritorio usa data/)
 backend/pos.db
+
+# ZIP de distribución (build_desktop.bat)
+/SistemaPOS-v1.1.zip
 
 # Backups de CSS
 *.backup.css

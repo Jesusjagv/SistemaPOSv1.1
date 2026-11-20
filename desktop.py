@@ -1,36 +1,63 @@
 """
-desktop.py — Lanzador de escritorio nativo para Sistema POS v1.0
-Usa pywebview para crear una ventana nativa que carga el frontend local
-y apunta a un servidor backend en la nube.
+desktop.py — Lanzador de escritorio para Sistema POS (offline-first).
+
+1. Carga `.env` de la carpeta de la app y fija defaults: sqlite local en
+   `data/pos.db` y puerto 5000 (si DATABASE_URL/PORT no están definidos).
+2. Arranca el backend Flask (waitress) en un hilo daemon, solo en
+   127.0.0.1:PORT — el backend también sirve el frontend (same-origin,
+   config.js queda vacío).
+3. Abre la ventana pywebview apuntando al backend.
+
+En modo empaquetado (PyInstaller onedir) todo viene incluido: el cliente
+solo necesita abrir SistemaPOS.exe; sus datos viven en `data/` junto al
+ejecutable (sincronización opcional vía `.env`: CLOUD_URL, SYNC_USER,
+SYNC_PASSWORD, MACHINE_ID).
 """
 import os
 import sys
 import threading
-import webview
-import traceback
 import socket
 import atexit
-from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+import time
+import traceback
 
-# ── CONFIGURACIÓN ────────────────────────────────────────
-API_BASE_URL = 'http://localhost:5000'
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+# ── RUTAS ─────────────────────────────────────────────────
+if getattr(sys, 'frozen', False):
+    APP_DIR = os.path.dirname(sys.executable)  # dist/SistemaPOS/
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(APP_DIR, 'desktop_error.log')
 LOCK_PORT = 49152  # Puerto fijo para evitar múltiples instancias
+
+# ── ENTORNO (antes de importar el backend) ────────────────
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(APP_DIR, '.env'))  # no pisa variables ya definidas
+PORT = int(os.getenv('PORT', '5000'))
+if not os.getenv('DATABASE_URL'):
+    # Offline-first: base sqlite local junto al programa
+    _db = os.path.join(APP_DIR, 'data', 'pos.db').replace('\\', '/')
+    os.environ['DATABASE_URL'] = f'sqlite:///{_db}'
+
+# Importar el backend REAL (backend/app.py, no la copia vieja de la raíz).
+# El orden importa: primero APP_DIR (paquete `backend`), luego backend/
+# (módulos top-level: database, routes, ...). En el exe congelado estos
+# módulos viven en el PYZ; las rutas de arriba solo aplican en desarrollo.
+sys.path.insert(0, APP_DIR)
+sys.path.insert(0, os.path.join(APP_DIR, 'backend'))
+from backend.app import app as flask_app  # noqa: E402
+from database import init_db  # noqa: E402
+from sync_engine import start_sync_engine  # noqa: E402
+
 
 def log(msg):
     with open(LOG_FILE, 'a', encoding='utf-8') as f:
         f.write(f'{msg}\n')
 
-def get_frontend_path():
-    if getattr(sys, 'frozen', False):
-        return os.path.join(sys._MEIPASS, 'frontend')
-    return os.path.join(APP_DIR, 'frontend')
 
-FRONTEND_PATH = get_frontend_path()
-
-# ── Bloqueo de instancia única ───────────────────────────
+# ── Bloqueo de instancia única ────────────────────────────
 lock = None
+
 
 def try_lock():
     global lock
@@ -44,68 +71,106 @@ def try_lock():
     except OSError:
         return False
 
+
 def unlock():
     global lock
     if lock:
         try:
             lock.close()
-        except:
+        except Exception:
             pass
 
-# ── Servidor HTTP local con CORS ─────────────────────────
-class PosHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=FRONTEND_PATH, **kwargs)
 
-    def log_message(self, format, *args):
+# ── Backend en hilo daemon ────────────────────────────────
+_backend_errors = []
+
+
+def _run_backend():
+    try:
+        init_db()            # esquema sqlite (o MySQL si DATABASE_URL lo es)
+        start_sync_engine()  # no-op sin CLOUD_URL
+        from waitress import serve
+        threads = int(os.getenv('WAITRESS_THREADS', '16'))
+        log(f'Backend: waitress 127.0.0.1:{PORT} threads={threads} '
+            f'db={os.getenv("DATABASE_URL")}')
+        # 127.0.0.1 a propósito: el escritorio no expone el puerto en la LAN.
+        serve(flask_app, host='127.0.0.1', port=PORT, threads=threads,
+              trusted_proxy='127.0.0.1',
+              trusted_proxy_headers={'x-forwarded-for'})
+    except Exception as e:
+        _backend_errors.append(e)
+        log(f'ERROR backend: {e}')
+        log(traceback.format_exc())
+
+
+def _wait_backend(timeout=20.0):
+    """Espera a que el backend acepte conexiones. Devuelve None o el error."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _backend_errors:
+            return _backend_errors[0]
+        try:
+            s = socket.create_connection(('127.0.0.1', PORT), 0.5)
+            s.close()
+            return None
+        except OSError:
+            time.sleep(0.2)
+    return TimeoutError(f'El backend no respondió en {int(timeout)}s (puerto {PORT})')
+
+
+def _is_pos_backend():
+    """¿Ya hay un backend Sistema POS respondiendo en PORT? (flujo dev)"""
+    try:
+        import urllib.request
+        with urllib.request.urlopen(f'http://127.0.0.1:{PORT}/', timeout=2) as r:
+            body = r.read(4096).decode('utf-8', 'replace')
+        return 'KalyPOS' in body
+    except Exception:
+        return False
+
+
+# ── Ventana de escritorio ─────────────────────────────────
+def _dialog(title, msg, flags=0x10):
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, msg, title, 0x40 | 0x1000 | flags)
+    except Exception:
         pass
 
-    def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
-        super().end_headers()
 
-    def do_GET(self):
-        # Comparar sin query string: la página pide 'js/config.js?v=1.0'
-        path = self.path.split('?', 1)[0]
-        if path == '/js/config.js':
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/javascript')
-            self.end_headers()
-            self.wfile.write(f'window.API_BASE_URL = "{API_BASE_URL}";'.encode())
-            return
-        return super().do_GET()
-
-def start_server():
-    server = ThreadingHTTPServer(('localhost', 0), PosHandler)
-    port = server.server_address[1]
-    t = threading.Thread(target=server.serve_forever, daemon=True)
-    t.start()
-    return server, port
-
-# ── Ventana de escritorio ────────────────────────────────
 def main():
     atexit.register(unlock)
 
     if not try_lock():
         log('Ya hay una instancia abierta.')
-        import ctypes
-        ctypes.windll.user32.MessageBoxW(
-            0, 'La aplicación ya está en ejecución.\nRevisa la bandeja del sistema.',
-            'Sistema POS', 0x40 | 0x1000
-        )
+        _dialog('Sistema POS',
+                'La aplicación ya está en ejecución.\n'
+                'Cierra la ventana abierta e inténtalo de nuevo.',
+                0x40)
         sys.exit(0)
 
     try:
         log('=== Iniciando Sistema POS Desktop ===')
-        log(f'API: {API_BASE_URL}')
+        log(f'APP_DIR: {APP_DIR}')
 
-        server, port = start_server()
-        url = f'http://localhost:{port}/index.html'
+        if _is_pos_backend():
+            # Ya hay un backend POS en el puerto (dev con start.bat, u otra
+            # instancia): no arrancar otro, solo abrir la ventana.
+            log(f'Backend ya corriendo en {PORT}: se reutiliza.')
+        else:
+            threading.Thread(target=_run_backend, daemon=True,
+                             name='pos-backend').start()
+            err = _wait_backend()
+            if err:
+                raise RuntimeError(
+                    f'No se pudo iniciar el servidor local (puerto {PORT}).\n{err}')
+
+        url = f'http://127.0.0.1:{PORT}/'
         log(f'URL: {url}')
 
+        import webview
         window = webview.create_window(
-            title='Sistema POS v1.0 — Escritorio',
+            title='Sistema POS v1.1 — Escritorio',
             url=url,
             width=1280,
             height=800,
@@ -124,13 +189,10 @@ def main():
     except Exception as e:
         log(f'ERROR: {e}')
         log(traceback.format_exc())
-        import ctypes
-        ctypes.windll.user32.MessageBoxW(
-            0,
-            f'Error al iniciar Sistema POS:\n\n{e}\n\nRevisa desktop_error.log',
-            'Error - Sistema POS',
-            0x10 | 0x1000
-        )
+        _dialog('Error - Sistema POS',
+                f'Error al iniciar Sistema POS:\n\n{e}\n\n'
+                'Revisa desktop_error.log')
+
 
 if __name__ == '__main__':
     main()

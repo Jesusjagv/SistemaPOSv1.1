@@ -27,7 +27,10 @@ def app():
     _cur.execute('CREATE DATABASE SistemaPOSv1_1_test')
     _c.close()
 
-    from app import app as _app
+    # backend/app.py EXPLÍCITO: la raíz tiene una copia vieja sin los
+    # blueprints de settings/cash_sessions/sync (el orden de sys.path
+    # no basta para distinguirlas).
+    from backend.app import app as _app
     from database import init_db, get_db
     from werkzeug.security import generate_password_hash
     init_db()  # creates schema + seeds default data
