@@ -36,15 +36,25 @@ No hay lint, typecheck ni CI configurados. Orden de verificación: solo pytest.
 
 ## Base de datos
 
-- **MySQL obligatorio** (PyMySQL). `DATABASE_URL` en `.env` (ver `.env.example`). No hay SQLite.
-- Al arrancar, `init_db()` crea esquema + aplica migraciones incrementales de columnas (p.ej. conversiones de paquete en `products`). No hay Alembic ni framework de migraciones; scripts one-shot en `backend/migrate_*.py` (dejar de usar `migrate_to_aiven.py` y credenciales hardcodeadas).
-- Pool de conexiones propio en `database.py`. Rutas usan `get_db()` + `close_db` teardown.
+- **MySQL en nube/dev** (PyMySQL): `DATABASE_URL` en `.env` (ver `.env.example`, formato TiDB `mysql://...?ssl-mode=REQUIRED`).
+- **SQLite en escritorio offline**: si `DATABASE_URL` empieza con `sqlite://`, `database.py` crea un `SQLiteWrapper` con el mismo API que traduce el dialecto MySQL→SQLite (`%s`→`?`, `FOR UPDATE` eliminado, `INSERT IGNORE`→`INSERT OR IGNORE`, `REPLACE INTO`→UPDATE-then-INSERT, `DATE_SUB/ADD`→`date()`, shims SQL `NOW()/UUID()/LPAD/HOUR/...`). El rewrite de INSERT inyecta `uuid`; el de UPDATE añade `updated_at` (ms UTC) + `sync_dirty=1`; el de DELETE registra `sync_tombstones`. En `engine_mode=True` (hilo sync) NO hay rewrite: el engine gestiona uuid/updated_at/dirty.
+- Al arrancar, `init_db()` crea esquema MySQL (o `init_local_db()` el sqlite, con seeds solo si no hay `CLOUD_URL`) + aplica migraciones incrementales de columnas. No hay Alembic; scripts one-shot en `backend/migrate_*.py` (dejar de usar `migrate_to_aiven.py` y credenciales hardcodeadas).
+- Pool de conexiones propio en `database.py`. Rutas usan `get_db()` + `close_db` teardown. En sqlite hay lock global `_sqlite_lock` (RLock reentrante); wrappers son thread-local por `(url, engine_mode)`.
+
+## Sincronización offline (escritorio ↔ nube)
+
+- **API nube:** `routes/sync.py` (`POST /api/sync/push`, `GET /api/sync/pull`). LWW por `updated_at` (empate gana servidor), `stock_delta` en products, FKs por `<col>_uuid`, company sellada con el token, DELETEs → `sync_tombstones`.
+- **Engine escritorio:** `backend/sync_engine.py`. `start_sync_engine()` (hook en `__main__` de `backend/app.py`) lanza un hilo daemon que hace push→pull cada `SYNC_INTERVAL` (default 8s). **Cero mensajes en pantalla**: log con throttling (solo imprime al cambiar el estado). Env: `CLOUD_URL`, `SYNC_USER`, `SYNC_PASSWORD`; sin ellas no hay sync. Tablas: `SYNCED_TABLES` en `database.py` (16); orden de push/pull: `APPLY_ORDER` en `sync_engine.py` (¡cash_sessions ANTES que sales por `session_id`!); `ENGINE_FKS` define qué uuid de padres adjuntar en push.
+- **`MACHINE_ID`** (≤6 chars): sufijo de `VEN-YYYYMMDD-XXXX{mid}` y `CAJA-...` para que dos máquinas no choquen el UNIQUE de `counters` locales.
+- `CLOUD_URL` presente en init → el sqlite local arranca VACÍO (sin seeds) y se puebla con el primer pull.
 
 ### Tests
 
 `backend/tests/conftest.py` **dropea y recrea** la BD `SistemaPOSv1_1_test` por sesión, con credenciales hardcodeadas `root:15508984@localhost`. Sobreescribir con `TEST_DATABASE_URL` si cambian. Los tests NO usan la BD de producción.
 
 Semilla de roles: `admin/admin123`, `cajero/cajero123`, superadmin `master/Master123!` (este último solo se inserta en el fixture de tests, no en `init_db`).
+
+Resultado esperado de la suite completa: **149 passed / 2 failed** (los 2 de `test_chat.py::TestGeminiIntegration` son preexistentes: requieren `OPENROUTER_API_KEY`). `test_sqlite_dialect.py` (28, dialecto sqlite) y `test_offline.py` (11, E2E offline) NO requieren la app cloud excepto el fixture `app` compartido en `test_offline`.
 
 ## Multi-tenant (crítico)
 
@@ -83,5 +93,5 @@ Tablas con `company_id`: users, products, customers, sales, categories, cash_ses
 
 - Secretos Flask/JWT hardcodeados en `backend/app.py`; no copiar a producción real sin cambiar.
 - `.env` y `.webview2_data/` no deben commitearse (webview2 generó mucho ruido en el staging de git).
-- `backend/pos.db` es residuo; el sistema no usa SQLite.
+- `backend/pos.db` es residuo de una versión vieja; el modo offline usa la ruta que diga `DATABASE_URL` (`sqlite:///...`).
 - Python 3.13 en `.venv`. Dependencias pinneadas en `requirements.txt` (Flask 3, waitress, pywebview, pyinstaller, pytest).
