@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import sys, os
 from datetime import datetime, date
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from database import get_db, next_counter
+from database import get_db, next_counter, machine_suffix
 
 sales_bp = Blueprint('sales', __name__)
 
@@ -40,7 +40,7 @@ def generate_sale_number():
         return row['cnt'] if row else 0
 
     seq = next_counter(conn, f'sale_{today}', init_count=_existing_count)
-    return f"VEN-{today}-{seq:04d}"
+    return f"VEN-{today}-{seq:04d}{machine_suffix()}"
 
 
 @sales_bp.route('', methods=['POST'])

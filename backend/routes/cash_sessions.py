@@ -4,7 +4,7 @@ import sys, os
 from datetime import datetime, date
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from database import get_db, next_counter
+from database import get_db, next_counter, machine_suffix
 from routes.exchange import get_today_rate
 
 cash_sessions_bp = Blueprint('cash_sessions', __name__)
@@ -43,7 +43,7 @@ def generate_session_number(conn, company_id):
         return row['cnt'] if row else 0
 
     seq = next_counter(conn, f'session_{today}', init_count=_existing_count)
-    return f"CAJA-{today}-{seq:04d}"
+    return f"CAJA-{today}-{seq:04d}{machine_suffix()}"
 
 
 def build_session_summary(conn, session_id, company_id=None):

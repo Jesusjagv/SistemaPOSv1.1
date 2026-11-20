@@ -1,7 +1,11 @@
 import pymysql
 import os
 import queue
+import re
+import sqlite3
 import threading
+import uuid as uuid_module
+from datetime import datetime, date, timezone
 from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
 import urllib.parse
@@ -24,7 +28,7 @@ class PoolTimeoutError(Exception):
 
 def _parse_db_url(db_url=None):
     """Parse DATABASE_URL (o una URL dada) y devolver kwargs de conexión."""
-    db_url = db_url or os.getenv('DATABASE_URL')
+    db_url = db_url or resolve_db_url()
     if not db_url:
         raise RuntimeError('DATABASE_URL not set in environment')
     parsed = urllib.parse.urlparse(db_url)
@@ -57,6 +61,404 @@ def _parse_db_url(db_url=None):
 def _create_connection():
     kwargs = _parse_db_url()
     return pymysql.connect(**kwargs)
+
+
+# ── Dialecto SQLite (modo offline-first para el escritorio) ──────────
+# El cliente de escritorio corre contra un archivo SQLite local mientras
+# un hilo de sincronización replica con la nube. Las rutas existentes
+# escriben SQL de MySQL; SQLiteWrapper traduce lo mínimo necesario y
+# marca sync_dirty / sync_tombstones en INSERT/UPDATE/DELETE locales.
+# El hilo de sync escribe en "engine_mode" (sin reescrituras: él mismo
+# gestiona uuid/updated_at/sync_dirty al aplicar lo recibido de la nube).
+
+# Tablas replicables (orden = orden topológico de aplicación en pull).
+# Debe mantenerse en sincronía con SYNC_TABLES de routes/sync.py.
+SYNCED_TABLES = (
+    'companies', 'users', 'categories', 'products', 'combo_items',
+    'customers', 'exchange_rates', 'sales', 'sale_items',
+    'cash_sessions', 'cash_session_denominations', 'cash_session_payments',
+    'debts', 'debt_payments', 'inventory_movements', 'security_questions',
+)
+
+# Clave de conflicto para traducir REPLACE INTO (solo exchange_rates usa REPLACE)
+_REPLACE_CONFLICT_COL = {'exchange_rates': 'date'}
+
+_RE_FOR_UPDATE = re.compile(r'\s+FOR\s+UPDATE\s*$', re.I)
+_RE_START_TX = re.compile(r'^\s*START\s+TRANSACTION\s*;?\s*$', re.I)
+_RE_INSERT_IGNORE = re.compile(r'\bINSERT\s+IGNORE\b', re.I)
+_RE_INTERVAL = re.compile(
+    r'\b(DATE_SUB|DATE_ADD)\s*\(\s*(.+?)\s*,\s*INTERVAL\s+(-?\d+)\s+([A-Za-z]+)\s*\)',
+    re.I)
+_RE_REPLACE = re.compile(
+    r'^\s*REPLACE\s+INTO\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*VALUES\s*\(', re.I)
+_RE_UPDATE = re.compile(r'^\s*UPDATE\s+([A-Za-z_]\w*)\s+SET\s+', re.I)
+_RE_DELETE = re.compile(r'^\s*DELETE\s+FROM\s+([A-Za-z_]\w*)\b', re.I)
+_RE_INSERT = re.compile(
+    r'^\s*INSERT\s+(?:OR\s+\w+\s+)?INTO\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*VALUES\s*\(', re.I)
+
+_sqlite_lock = threading.RLock()
+_sqlite_state = threading.local()
+
+
+def _translate_sql(sql):
+    """Convierte SQL de MySQL al dialecto equivalente de SQLite."""
+    if '%s' in sql:
+        sql = sql.replace('%s', '?')
+    if '%%' in sql:
+        sql = sql.replace('%%', '%')
+    if _RE_START_TX.match(sql):
+        return 'BEGIN'
+    sql = _RE_FOR_UPDATE.sub('', sql)
+    sql = _RE_INSERT_IGNORE.sub('INSERT OR IGNORE', sql)
+
+    def _interval(m):
+        sign = '-' if m.group(1).lower() == 'date_sub' else '+'
+        n = m.group(3).lstrip('-')
+        return f"date({m.group(2)}, '{sign}{n} {m.group(4).lower()}')"
+
+    return _RE_INTERVAL.sub(_interval, sql)
+
+
+# ── Funciones SQL que trae MySQL y SQLite no tiene ──
+
+def _fn_now():
+    # UTC: Render/MySQL también usa UTC, el LWW depende de un reloj único
+    return datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def _fn_lpad(s, n, fill):
+    s = '' if s is None else str(s)
+    n = int(n)
+    fill = ' ' if fill in (None, '') else str(fill)
+    if len(s) >= n:
+        return s[:n]
+    return fill * (n - len(s)) + s
+
+
+def _dt_part(value, a, b, default=None):
+    if value is None:
+        return None
+    try:
+        s = str(value)
+        if 'T' in s:
+            s = s.replace('T', ' ')
+        if len(s) < b:
+            return default
+        return int(s[a:b])
+    except (ValueError, TypeError):
+        return default
+
+
+def _fn_hour(v):
+    return _dt_part(v, 11, 13, default=0)
+
+
+def _fn_minute(v):
+    return _dt_part(v, 14, 16, default=0)
+
+
+def _fn_month(v):
+    return _dt_part(v, 5, 7, default=0)
+
+
+def _fn_day(v):
+    return _dt_part(v, 8, 10, default=0)
+
+
+def _fn_year(v):
+    return _dt_part(v, 0, 4, default=0)
+
+
+def _conv_timestamp(b):
+    s = b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else str(b)
+    for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _conv_date(b):
+    s = b.decode('utf-8', 'replace') if isinstance(b, (bytes, bytearray)) else str(b)
+    try:
+        return date.fromisoformat(s[:10])
+    except ValueError:
+        return None
+
+
+# Adaptadores: Py3.13 deprecó los default de datetime/date.
+# Sin microsegundos si no los trae: el roundtrip debe comparar igual
+# (guardas `WHERE updated_at = ?` del engine/limpieza de sync_dirty).
+sqlite3.register_adapter(
+    datetime,
+    lambda d: (d.strftime('%Y-%m-%d %H:%M:%S.%f') if d.microsecond
+               else d.strftime('%Y-%m-%d %H:%M:%S'))
+)
+sqlite3.register_adapter(date, lambda d: d.isoformat())
+for _tname in ('timestamp', 'TIMESTAMP', 'datetime', 'DATETIME'):
+    sqlite3.register_converter(_tname, _conv_timestamp)
+for _tname in ('date', 'DATE'):
+    sqlite3.register_converter(_tname, _conv_date)
+
+
+def _sqlite_path(db_url):
+    path = urllib.parse.urlparse(db_url).path
+    if path.startswith('/'):
+        path = path[1:]  # sqlite:///C:/x.db -> C:/x.db ; sqlite:///./x.db -> ./x.db
+    if not path:
+        raise RuntimeError(f'DATABASE_URL sqlite sin ruta: {db_url}')
+    return path
+
+
+def _dict_row_factory(cursor, values):
+    cols = [d[0] for d in cursor.description] if cursor.description else []
+    return dict(zip(cols, values))
+
+
+def _connect_sqlite(db_url):
+    path = _sqlite_path(db_url)
+    if path != ':memory:':
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    conn = sqlite3.connect(
+        path,
+        detect_types=sqlite3.PARSE_DECLTYPES,
+        check_same_thread=False,
+        isolation_level=None,  # autocommit: las transacciones son explícitas (BEGIN)
+    )
+    conn.row_factory = _dict_row_factory
+    conn.create_function('NOW', 0, _fn_now)
+    conn.create_function('UUID', 0, lambda: str(uuid_module.uuid4()))
+    conn.create_function('LPAD', 3, _fn_lpad)
+    conn.create_function('HOUR', 1, _fn_hour)
+    conn.create_function('MINUTE', 1, _fn_minute)
+    conn.create_function('MONTH', 1, _fn_month)
+    conn.create_function('DAY', 1, _fn_day)
+    conn.create_function('YEAR', 1, _fn_year)
+    conn.execute('PRAGMA busy_timeout = 5000')
+    conn.execute('PRAGMA foreign_keys = OFF')
+    conn.execute('PRAGMA journal_mode = WAL')
+    conn.execute('PRAGMA synchronous = NORMAL')
+    return conn
+
+
+class SQLiteWrapper:
+    """Misma API que DBWrapper (execute/cursor/begin/...) sobre sqlite3."""
+    dialect = 'sqlite'
+    __slots__ = ('conn', '_in_tx', 'engine_mode')
+
+    def __init__(self, conn, engine_mode=False):
+        self.conn = conn
+        self._in_tx = False
+        self.engine_mode = engine_mode
+
+    # ── ejecución ──
+
+    def execute(self, sql, args=None):
+        if self.conn is None:
+            raise RuntimeError('Conexión ya cerrada')
+        with _sqlite_lock:
+            sql = _translate_sql(sql)
+            if not self.engine_mode:
+                m = _RE_REPLACE.match(sql)
+                if m:
+                    return self._exec_replace(m, args)
+                m = _RE_UPDATE.match(sql)
+                if m:
+                    if m.group(1) in SYNCED_TABLES:
+                        sql = _rewrite_update(sql, m)
+                else:
+                    m = _RE_DELETE.match(sql)
+                    if m and m.group(1) in SYNCED_TABLES:
+                        return self._exec_delete(sql, args, m)
+                    m = _RE_INSERT.match(sql)
+                    if m and m.group(1) in SYNCED_TABLES:
+                        sql, args = _inject_uuid(sql, m, args)
+            cur = self.conn.cursor()
+            if args is None:
+                cur.execute(sql)
+            else:
+                cur.execute(sql, args)
+            return cur
+
+    def executemany(self, sql, args):
+        if self.conn is None:
+            raise RuntimeError('Conexión ya cerrada')
+        with _sqlite_lock:
+            sql = _translate_sql(sql)
+            if not self.engine_mode:
+                m = _RE_REPLACE.match(sql)
+                if m:
+                    return [self._exec_replace(m, a) for a in (args or [])]
+                m = _RE_UPDATE.match(sql)
+                if m:
+                    if m.group(1) in SYNCED_TABLES:
+                        sql = _rewrite_update(sql, m)
+                else:
+                    m = _RE_DELETE.match(sql)
+                    if m and m.group(1) in SYNCED_TABLES:
+                        return [self._exec_delete(sql, a, m) for a in (args or [])]
+                    m = _RE_INSERT.match(sql)
+                    if m and m.group(1) in SYNCED_TABLES:
+                        sql = _sql_inject_uuid(sql, m)
+                        args = [tuple(a) + (str(uuid_module.uuid4()),) for a in args]
+            cur = self.conn.cursor()
+            cur.executemany(sql, args)
+            return cur
+
+    def cursor(self):
+        return self.conn.cursor()
+
+    def begin(self):
+        with _sqlite_lock:
+            if self.conn is None:
+                raise RuntimeError('Conexión ya cerrada')
+            if self._in_tx:
+                return
+            self.conn.execute('BEGIN')
+            self._in_tx = True
+
+    def commit(self):
+        if self.conn is None:
+            return
+        with _sqlite_lock:
+            if self._in_tx:
+                try:
+                    self.conn.execute('COMMIT')
+                finally:
+                    self._in_tx = False
+
+    def rollback(self):
+        if self.conn is None:
+            return
+        with _sqlite_lock:
+            if self._in_tx:
+                try:
+                    self.conn.execute('ROLLBACK')
+                finally:
+                    self._in_tx = False
+
+    def close(self):
+        """No cierra la conexión: es compartida por thread (thread-local)."""
+        if self.conn is None:
+            return
+        with _sqlite_lock:
+            if self._in_tx:
+                try:
+                    self.conn.execute('ROLLBACK')
+                except Exception:
+                    pass
+                self._in_tx = False
+
+    # ── reescrituras de escritura ──
+
+    def _exec_delete(self, sql, args, m):
+        """DELETE en tabla sincronizable: captura uuids en sync_tombstones."""
+        table = m.group(1)
+        tail = sql[m.end():]
+        cur = self.conn.cursor()
+        sel = f'SELECT uuid FROM {table}{tail}'
+        if args is None:
+            cur.execute(sel)
+        else:
+            cur.execute(sel, args)
+        uuids = [r['uuid'] for r in cur.fetchall() if r.get('uuid')]
+        if args is None:
+            cur.execute(sql)
+        else:
+            cur.execute(sql, args)
+        for u in uuids:
+            self.conn.execute(
+                'INSERT OR IGNORE INTO sync_tombstones '
+                '(company_id, table_name, row_uuid) VALUES (NULL, ?, ?)',
+                (table, u)
+            )
+        return cur
+
+    def _exec_replace(self, m, args):
+        """REPLACE INTO -> UPDATE conservando uuid (si no existe, INSERT)."""
+        table = m.group(1)
+        cols = [c.strip() for c in m.group(2).split(',')]
+        conflict = _REPLACE_CONFLICT_COL.get(table)
+        if conflict is None or conflict not in cols or args is None:
+            sql = f"INSERT OR REPLACE INTO {table} ({m.group(2)}) VALUES ({', '.join('?' * len(cols))})"
+            return self.execute(sql, args)
+        vals = dict(zip(cols, args))
+        sets = [c for c in cols if c != conflict]
+        if sets:
+            cur = self.execute(
+                f"UPDATE {table} SET {', '.join(c + ' = ?' for c in sets)} WHERE {conflict} = ?",
+                [vals[c] for c in sets] + [vals[conflict]]
+            )
+            if cur.rowcount > 0:
+                return cur
+        return self.execute(
+            f"INSERT INTO {table} ({', '.join(cols)}) "
+            f"VALUES ({', '.join('?' * len(cols))})",
+            tuple(vals[c] for c in cols)
+        )
+
+
+def _rewrite_update(sql, m):
+    """Añade updated_at/sync_dirty a un UPDATE de tabla sincronizable."""
+    set_start = m.end()
+    mw = re.search(r'\sWHERE\s', sql[set_start:], re.I)
+    seg_end = set_start + mw.start() if mw else len(sql)
+    set_clause = sql[set_start:seg_end]
+    adds = []
+    if not re.search(r'\bupdated_at\b', set_clause, re.I):
+        # precisión de milisegundos (UTC): con solo segundos, dos cambios en
+        # el mismo segundo empatan en LWW y la nube descarta el segundo
+        adds.append("updated_at = strftime('%Y-%m-%d %H:%M:%f','now')")
+    if not re.search(r'\bsync_dirty\b', set_clause, re.I):
+        adds.append('sync_dirty = 1')
+    if not adds:
+        return sql
+    return sql[:seg_end] + ', ' + ', '.join(adds) + sql[seg_end:]
+
+
+def _sql_inject_uuid(sql, m):
+    """Añade la columna uuid (y su ?) a un INSERT de tabla sincronizable."""
+    names = [c.strip().lower() for c in m.group(2).split(',')]
+    if 'uuid' in names:
+        return sql
+    sql = sql[:m.end(2)] + ', uuid' + sql[m.end(2):]
+    idx = sql.rfind(')')
+    return sql[:idx] + ', ?' + sql[idx:]
+
+
+def _inject_uuid(sql, m, args):
+    names = [c.strip().lower() for c in m.group(2).split(',')]
+    if 'uuid' in names:
+        return sql, args
+    new_sql = _sql_inject_uuid(sql, m)
+    if args is None:
+        args = ()
+    args = tuple(args) + (str(uuid_module.uuid4()),)
+    return new_sql, args
+
+
+def _is_sqlite_url(db_url):
+    return bool(db_url) and str(db_url).strip().lower().startswith('sqlite:')
+
+
+def _get_sqlite_wrapper(db_url, engine_mode=False):
+    store = getattr(_sqlite_state, 'wrappers', None)
+    if store is None:
+        store = _sqlite_state.wrappers = {}
+    key = (db_url, engine_mode)
+    w = store.get(key)
+    if w is None or w.conn is None:
+        w = SQLiteWrapper(_connect_sqlite(db_url), engine_mode=engine_mode)
+        store[key] = w
+    return w
+
+
+# ── Fin dialecto SQLite ──────────────────────────────────────────────
+
 
 class ConnectionPool:
     __slots__ = ('_pool', '_max_size', '_size', '_lock')
@@ -178,9 +580,30 @@ class DBWrapper:
         else:
             raw.close()
 
-from flask import has_app_context, g
+from flask import has_app_context, g, current_app
+
+
+def resolve_db_url():
+    """URL de la BD activa: config de la app (multi-app/tests) > env."""
+    if has_app_context():
+        try:
+            u = current_app.config.get('DATABASE_URL')
+            if u:
+                return u
+        except RuntimeError:
+            pass
+    return os.getenv('DATABASE_URL')
+
 
 def get_db():
+    url = resolve_db_url()
+    if _is_sqlite_url(url):
+        # Escritorio offline-first: conexión thread-local sobre el archivo local
+        if has_app_context():
+            if 'db_conn' not in g or getattr(g.db_conn, 'conn', None) is None:
+                g.db_conn = _get_sqlite_wrapper(url)
+            return g.db_conn
+        return _get_sqlite_wrapper(url)
     if has_app_context():
         # Si estamos dentro de una petición Flask, reusar la conexión si está activa
         if 'db_conn' not in g or getattr(g.db_conn, 'conn', None) is None:
@@ -207,6 +630,27 @@ def next_counter(conn, name, init_count=None):
     `init_count` (callable) se usa solo al crear la fila, para partir del
     conteo de registros existentes con el formato antiguo.
     """
+    if getattr(conn, 'dialect', 'mysql') == 'sqlite':
+        # Secuencia completa bajo el lock global: sqlite no tiene
+        # LAST_INSERT_ID por sesión, así que la lectura final debe quedar
+        # atómica con el incremento.
+        with _sqlite_lock:
+            row = conn.execute(
+                "SELECT val FROM counters WHERE name = ?", (name,)
+            ).fetchone()
+            if row is None:
+                base = int(init_count()) if init_count else 0
+                conn.execute(
+                    "INSERT OR IGNORE INTO counters (name, val) VALUES (?, ?)",
+                    (name, base)
+                )
+            conn.execute(
+                "UPDATE counters SET val = val + 1 WHERE name = ?", (name,)
+            )
+            result = conn.execute(
+                "SELECT val FROM counters WHERE name = ?", (name,)
+            ).fetchone()
+            return int(result['val'])
     row = conn.execute(
         "SELECT val FROM counters WHERE name = %s", (name,)
     ).fetchone()
@@ -224,7 +668,20 @@ def next_counter(conn, name, init_count=None):
     result = conn.execute("SELECT LAST_INSERT_ID() AS n").fetchone()
     return int(result['n'])
 
+def machine_suffix():
+    """Sufijo corto de máquina para números únicos multi-caja (MACHINE_ID).
+
+    VEN-20261119-0001-01 / CAJA-20261119-0001-T1: dos escritorios con la
+    misma BD nube no pueden chocar en los UNIQUE de sale_number /
+    session_number. Vacío si no hay MACHINE_ID (servidor único, como antes).
+    """
+    mid = re.sub(r'[^A-Za-z0-9]', '', os.getenv('MACHINE_ID', ''))[:6]
+    return f'-{mid}' if mid else ''
+
+
 def init_db():
+    if _is_sqlite_url(resolve_db_url()):
+        return init_local_db()
     conn = get_db()
     cursor = conn.cursor()
 
@@ -751,3 +1208,446 @@ def init_db():
     print("Base de datos inicializada correctamente")
     print("   User Admin:  usuario='admin'  | contrasena='admin123'")
     print("   User Cajero: usuario='cajero' | contrasena='cajero123'")
+
+
+def init_local_db():
+    """Esquema SQLite local para el cliente de escritorio offline-first.
+
+    - uuid/updated_at/sync_dirty en las 16 tablas replicables.
+    - sync_idmap (id nube -> id local), sync_state (cursor `since`),
+      sync_tombstones (borrados locales pendientes de subir).
+    - Con CLOUD_URL definido NO se siembran datos: el primer pull trae
+      empresa, usuarios, categorías y productos desde la nube.
+    - Sin CLOUD_URL (modo standalone) se siembra igual que MySQL.
+    """
+    cloud_mode = bool(os.getenv('CLOUD_URL'))
+    conn = get_db()
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS companies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            active INTEGER DEFAULT 1,
+            rate_mode TEXT DEFAULT 'auto',
+            manual_rate REAL,
+            status TEXT DEFAULT 'pending',
+            trial_start TIMESTAMP,
+            trial_end TIMESTAMP,
+            email TEXT,
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS counters (
+            name VARCHAR(100) PRIMARY KEY,
+            val INTEGER NOT NULL DEFAULT 0
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            role TEXT NOT NULL,
+            active INTEGER DEFAULT 1,
+            company_id INTEGER,
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            email VARCHAR(255),
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(255) NOT NULL,
+            color VARCHAR(50) DEFAULT '#7c3aed',
+            company_id INTEGER,
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(255) NOT NULL,
+            code VARCHAR(100) UNIQUE,
+            category_id INTEGER,
+            price_usd DECIMAL(10,2) NOT NULL DEFAULT 0,
+            cost_usd DECIMAL(10,2) DEFAULT 0,
+            unidades_por_paquete INTEGER DEFAULT 1,
+            costo_unidad DECIMAL(10,2) DEFAULT 0,
+            precio_unidad DECIMAL(10,2) DEFAULT 0,
+            precio_paquete DECIMAL(10,2) DEFAULT 0,
+            margen_unidad_porcentaje DECIMAL(5,2) DEFAULT 0,
+            is_combo BOOLEAN DEFAULT 0,
+            is_bulk BOOLEAN DEFAULT 0,
+            stock INTEGER DEFAULT 0,
+            min_stock INTEGER DEFAULT 5,
+            active BOOLEAN DEFAULT 1,
+            company_id INTEGER,
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1,
+            sync_base_stock REAL
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS combo_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            combo_product_id INTEGER NOT NULL,
+            ingredient_product_id INTEGER NOT NULL,
+            quantity DECIMAL(10,2) NOT NULL DEFAULT 1,
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(255) NOT NULL,
+            doc_type VARCHAR(10) DEFAULT 'V',
+            doc_number VARCHAR(50),
+            phone VARCHAR(50),
+            email VARCHAR(255),
+            address TEXT,
+            credit_limit_usd DECIMAL(10,2) DEFAULT 0,
+            credit_status TEXT DEFAULT 'Solvente',
+            company_id INTEGER,
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS exchange_rates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date DATE NOT NULL UNIQUE,
+            rate DECIMAL(10,4) NOT NULL,
+            source VARCHAR(50) DEFAULT 'BCV',
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS cash_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER NOT NULL,
+            session_number VARCHAR(50) UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            opened_by_user_id INTEGER NOT NULL,
+            closed_by_user_id INTEGER,
+            open_datetime DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+            close_datetime DATETIME,
+            exchange_rate_open DECIMAL(10,4) NOT NULL DEFAULT 0,
+            exchange_rate_close DECIMAL(10,4),
+            opening_amount_usd DECIMAL(10,2) DEFAULT 0,
+            opening_amount_bs DECIMAL(10,2) DEFAULT 0,
+            expected_cash_usd DECIMAL(10,2) DEFAULT 0,
+            expected_cash_bs DECIMAL(10,2) DEFAULT 0,
+            closing_amount_usd DECIMAL(10,2) DEFAULT 0,
+            closing_amount_bs DECIMAL(10,2) DEFAULT 0,
+            difference_usd DECIMAL(10,2) DEFAULT 0,
+            difference_bs DECIMAL(10,2) DEFAULT 0,
+            total_sales INTEGER DEFAULT 0,
+            total_revenue_usd DECIMAL(10,2) DEFAULT 0,
+            total_revenue_bs DECIMAL(10,2) DEFAULT 0,
+            total_tax_usd DECIMAL(10,2) DEFAULT 0,
+            total_discount_usd DECIMAL(10,2) DEFAULT 0,
+            cancelled_sales INTEGER DEFAULT 0,
+            cancelled_amount_usd DECIMAL(10,2) DEFAULT 0,
+            notes_open TEXT,
+            notes_close TEXT,
+            status TEXT DEFAULT 'open',
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS cash_session_denominations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            currency TEXT NOT NULL,
+            denomination DECIMAL(10,2) NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 0,
+            subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS cash_session_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            payment_method VARCHAR(50) NOT NULL,
+            count INTEGER DEFAULT 0,
+            total_usd DECIMAL(10,2) DEFAULT 0,
+            total_bs DECIMAL(10,2) DEFAULT 0,
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS sales (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_number VARCHAR(100) UNIQUE NOT NULL,
+            user_id INTEGER,
+            customer_id INTEGER,
+            customer_name VARCHAR(255),
+            subtotal_usd DECIMAL(10,2) NOT NULL,
+            tax_usd DECIMAL(10,2) NOT NULL,
+            discount_usd DECIMAL(10,2) DEFAULT 0,
+            total_usd DECIMAL(10,2) NOT NULL,
+            exchange_rate DECIMAL(10,4) NOT NULL,
+            total_bs DECIMAL(10,2) NOT NULL,
+            payment_method VARCHAR(50) NOT NULL,
+            amount_paid_usd DECIMAL(10,2) DEFAULT 0,
+            amount_paid_bs DECIMAL(10,2) DEFAULT 0,
+            change_usd DECIMAL(10,2) DEFAULT 0,
+            change_bs DECIMAL(10,2) DEFAULT 0,
+            company_id INTEGER,
+            session_id INTEGER,
+            notes TEXT,
+            status VARCHAR(50) DEFAULT 'completed',
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS sale_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER,
+            product_id INTEGER,
+            product_name VARCHAR(255) NOT NULL,
+            product_code VARCHAR(100),
+            quantity DECIMAL(10,2) NOT NULL,
+            price_usd DECIMAL(10,2) NOT NULL,
+            price_bs DECIMAL(10,2) NOT NULL,
+            discount_percent DECIMAL(5,2) DEFAULT 0,
+            total_usd DECIMAL(10,2) NOT NULL,
+            total_bs DECIMAL(10,2) NOT NULL,
+            tipo_venta VARCHAR(10) DEFAULT 'unidad',
+            stock_deducted DECIMAL(10,2) NOT NULL DEFAULT 0,
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS debts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER,
+            customer_id INTEGER NOT NULL,
+            sale_id INTEGER,
+            concept TEXT,
+            original_amount_usd DECIMAL(10,2) NOT NULL DEFAULT 0,
+            original_amount_bs DECIMAL(10,2) NOT NULL DEFAULT 0,
+            exchange_rate_at_creation DECIMAL(10,4) NOT NULL DEFAULT 0,
+            balance_usd DECIMAL(10,2) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            due_date DATE,
+            status TEXT DEFAULT 'Pendiente',
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS debt_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER,
+            debt_id INTEGER NOT NULL,
+            amount_paid_usd DECIMAL(10,2) NOT NULL DEFAULT 0,
+            exchange_rate_used DECIMAL(10,4) NOT NULL DEFAULT 0,
+            amount_paid_bs DECIMAL(10,2) DEFAULT 0,
+            payment_method VARCHAR(50) DEFAULT 'cash',
+            reference_number VARCHAR(255),
+            bank_origin VARCHAR(255),
+            bank_destination VARCHAR(255),
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS chat_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            company_id INTEGER,
+            role TEXT NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS security_questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            question VARCHAR(255) NOT NULL,
+            answer VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS inventory_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            user_id INTEGER,
+            type TEXT NOT NULL,
+            quantity_changed DECIMAL(10,2) DEFAULT 0,
+            previous_stock DECIMAL(10,2) DEFAULT 0,
+            new_stock DECIMAL(10,2) DEFAULT 0,
+            reason TEXT,
+            created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+            uuid VARCHAR(36),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sync_dirty INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+
+    # Migración para archivos locales creados antes de sync_base_stock
+    try:
+        conn.execute('ALTER TABLE products ADD COLUMN sync_base_stock REAL')
+    except Exception:
+        pass  # ya existe
+
+    # ── Infraestructura de sincronización ──
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS sync_tombstones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER,
+            table_name VARCHAR(64) NOT NULL,
+            row_uuid VARCHAR(36) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (table_name, row_uuid)
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS sync_idmap (
+            table_name VARCHAR(64) NOT NULL,
+            cloud_id INTEGER NOT NULL,
+            local_id INTEGER NOT NULL,
+            PRIMARY KEY (table_name, cloud_id)
+        )
+    ''')
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS sync_state (
+            name VARCHAR(64) PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+
+    # Índices (uuid único por tabla; NULL repetido permitido)
+    for table in SYNCED_TABLES:
+        conn.execute(
+            f'CREATE UNIQUE INDEX IF NOT EXISTS uq_{table}_sync_uuid '
+            f'ON {table}(uuid)'
+        )
+        conn.execute(
+            f'CREATE INDEX IF NOT EXISTS idx_{table}_sync_updated '
+            f'ON {table}(updated_at)'
+        )
+    for idx in (
+        'CREATE INDEX IF NOT EXISTS idx_debts_company_status ON debts(company_id, status)',
+        'CREATE INDEX IF NOT EXISTS idx_debts_due_date ON debts(due_date)',
+        'CREATE INDEX IF NOT EXISTS idx_sales_company_created ON sales(company_id, created_at)',
+        'CREATE INDEX IF NOT EXISTS idx_products_company_active ON products(company_id, active)',
+        'CREATE INDEX IF NOT EXISTS idx_cash_sessions_company_status ON cash_sessions(company_id, status)',
+        'CREATE INDEX IF NOT EXISTS idx_chat_user_company ON chat_history(user_id, company_id, created_at)',
+        'CREATE INDEX IF NOT EXISTS idx_sq_user ON security_questions(user_id)',
+        'CREATE INDEX IF NOT EXISTS idx_inv_mov_product ON inventory_movements(product_id, created_at)',
+    ):
+        conn.execute(idx)
+
+    if not cloud_mode:
+        # Semillas equivalentes a init_db() MySQL (solo sin nube)
+        row = conn.execute("SELECT id FROM companies WHERE name = 'Mi Empresa'").fetchone()
+        if not row:
+            cur = conn.execute(
+                "INSERT INTO companies (name, active, status) VALUES (%s, %s, %s)",
+                ('Mi Empresa', 1, 'active')
+            )
+            default_company_id = cur.lastrowid
+        else:
+            default_company_id = row['id']
+
+        if not conn.execute("SELECT id FROM users WHERE username = 'admin'").fetchone():
+            conn.execute(
+                "INSERT INTO users (username, password_hash, name, role, company_id) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                ('admin', generate_password_hash('admin123'), 'Administrador',
+                 'admin', default_company_id)
+            )
+        if not conn.execute("SELECT id FROM users WHERE username = 'cajero'").fetchone():
+            conn.execute(
+                "INSERT INTO users (username, password_hash, name, role, company_id) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                ('cajero', generate_password_hash('cajero123'), 'Cajero Principal',
+                 'cashier', default_company_id)
+            )
+        if conn.execute("SELECT COUNT(*) as count FROM categories").fetchone()['count'] == 0:
+            conn.executemany(
+                "INSERT INTO categories (name, color) VALUES (%s, %s)",
+                [
+                    ('Alimentos', '#f59e0b'), ('Bebidas', '#3b82f6'),
+                    ('Limpieza', '#10b981'), ('Cuidado Personal', '#ec4899'),
+                    ('Electrónica', '#6366f1'), ('Papelería', '#f97316'),
+                    ('Otros', '#6b7280'),
+                ]
+            )
+        if conn.execute("SELECT COUNT(*) as count FROM products").fetchone()['count'] == 0:
+            conn.executemany(
+                "INSERT INTO products (name, code, category_id, price_usd, cost_usd, "
+                "stock, min_stock) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                [
+                    ('Agua Mineral 600ml', 'P001', 1, 0.50, 0.30, 100, 10),
+                    ('Refresco 350ml', 'P002', 2, 0.75, 0.45, 80, 10),
+                    ('Pan de Sandwich', 'P003', 1, 1.20, 0.80, 50, 5),
+                    ('Detergente 1kg', 'P004', 3, 2.50, 1.80, 30, 5),
+                    ('Shampoo 400ml', 'P005', 4, 3.00, 2.00, 25, 5),
+                    ('Cuaderno 100 hojas', 'P006', 6, 1.50, 0.90, 40, 5),
+                ]
+            )
+        print("Base de datos local inicializada correctamente")
+        print("   User Admin:  usuario='admin'  | contrasena='admin123'")
+        print("   User Cajero: usuario='cajero' | contrasena='cajero123'")
+    else:
+        print("Base de datos local inicializada (modo offline, datos llegan por pull)")

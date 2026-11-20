@@ -28,6 +28,8 @@ app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path='')
 app.config['SECRET_KEY'] = 'pos-venezuela-s3cr3t-2025'
 app.config['JWT_SECRET_KEY'] = 'pos-jwt-v3n3zu3la-2025'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=12)
+# get_db() prioriza esta config sobre el env (permite varias apps/BDs en un proceso, p.ej. tests)
+app.config['DATABASE_URL'] = os.getenv('DATABASE_URL')
 
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 jwt = JWTManager(app)
@@ -110,6 +112,9 @@ if __name__ == '__main__':
     print("   SISTEMA POS v1.0 - Venezuela")
     print("=" * 55)
     init_db()
+    # Escritorio offline-first: hilo de sync con la nube (no-op sin CLOUD_URL)
+    from sync_engine import start_sync_engine
+    start_sync_engine()
     port = int(os.getenv('PORT', '5000'))
     print(f"\n   Abre tu navegador en: http://localhost:{port}\n")
     try:
