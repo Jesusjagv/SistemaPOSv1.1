@@ -122,9 +122,17 @@ def delete_customer(cid):
     claims = get_jwt()
     where, params = company_clause(claims)
     conn = get_db()
+    row = conn.execute(
+        f"SELECT uuid FROM customers WHERE id=%s{where}", (cid, *params)
+    ).fetchone()
     conn.execute(
         f"DELETE FROM customers WHERE id=%s{where}", (cid, *params)
     )
+    if row and row.get('uuid'):
+        conn.execute(
+            'INSERT IGNORE INTO sync_tombstones (company_id, table_name, row_uuid) VALUES (%s, %s, %s)',
+            (claims.get('company_id'), 'customers', row['uuid'])
+        )
     conn.commit()
     conn.close()
     return jsonify({"message": "Cliente eliminado"})

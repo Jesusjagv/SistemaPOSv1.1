@@ -19,6 +19,7 @@ from routes.superadmin import superadmin_bp
 from routes.debts import debts_bp
 from routes.cash_sessions import cash_sessions_bp
 from routes.settings import settings_bp
+from routes.sync import sync_bp
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend')
 
@@ -71,6 +72,7 @@ app.register_blueprint(superadmin_bp,    url_prefix='/api/superadmin')
 app.register_blueprint(debts_bp,         url_prefix='/api/debts')
 app.register_blueprint(cash_sessions_bp, url_prefix='/api/cash-sessions')
 app.register_blueprint(settings_bp,      url_prefix='/api/settings')
+app.register_blueprint(sync_bp,          url_prefix='/api/sync')
 
 # Serve frontend pages
 @app.route('/')

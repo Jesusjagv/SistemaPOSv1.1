@@ -617,6 +617,52 @@ def init_db():
         except Exception:
             pass  # Already exists
 
+    # ── Migrate: columnas de sincronización offline (uuid/updated_at) ──
+    # Todas las tablas sincronizables llevan uuid (clave global) y
+    # updated_at (LWW). El uuid se rellena con UUID() para filas creadas
+    # online; el cliente offline genera el suyo.
+    sync_tables = [
+        'companies', 'users', 'categories', 'products', 'combo_items',
+        'customers', 'exchange_rates', 'sales', 'sale_items',
+        'cash_sessions', 'cash_session_denominations', 'cash_session_payments',
+        'debts', 'debt_payments', 'inventory_movements', 'security_questions',
+    ]
+    for table in sync_tables:
+        for col, ddl in [
+            ('uuid', f'ALTER TABLE {table} ADD COLUMN uuid VARCHAR(36) DEFAULT NULL'),
+            ('updated_at', f'ALTER TABLE {table} ADD COLUMN updated_at TIMESTAMP NULL '
+                           f'DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        ]:
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                "WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s",
+                (table, col)
+            )
+            if cursor.fetchone()['COUNT(*)'] == 0:
+                cursor.execute(ddl)
+        for idx_sql in (
+            f'CREATE UNIQUE INDEX uq_{table}_sync_uuid ON {table}(uuid)',
+            f'CREATE INDEX idx_{table}_sync_updated ON {table}(updated_at)',
+        ):
+            try:
+                cursor.execute(idx_sql)
+            except Exception:
+                pass  # Ya existe
+        cursor.execute(f'UPDATE {table} SET uuid = UUID() WHERE uuid IS NULL')
+
+    # ── Tombstones: borrados propagados por pull (broadcast) ──
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sync_tombstones (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_id INT DEFAULT NULL,
+            table_name VARCHAR(64) NOT NULL,
+            row_uuid VARCHAR(36) NOT NULL,
+            created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_tomb (table_name, row_uuid),
+            INDEX idx_tomb_company (company_id, created_at)
+        )
+    ''')
+
     # ── Migrate: trial/demo columns for companies ──
     for col, ddl in [
         ("status", "ALTER TABLE companies ADD COLUMN status ENUM('pending','active','rejected','expired') DEFAULT 'pending'"),

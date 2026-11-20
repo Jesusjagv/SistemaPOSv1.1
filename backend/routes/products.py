@@ -85,13 +85,19 @@ def delete_category(cid):
     conn = get_db()
     where, params = company_clause(claims)
     
-    cursor = conn.execute('SELECT id FROM categories WHERE id = %s' + where, [cid] + params)
-    if not cursor.fetchone():
+    cursor = conn.execute('SELECT id, uuid FROM categories WHERE id = %s' + where, [cid] + params)
+    row = cursor.fetchone()
+    if not row:
         conn.close()
         return jsonify({"error": "Categoría no encontrada"}), 404
         
     conn.execute('UPDATE products SET category_id = NULL WHERE category_id = %s' + where, [cid] + params)
     conn.execute('DELETE FROM categories WHERE id = %s' + where, [cid] + params)
+    if row.get('uuid'):
+        conn.execute(
+            'INSERT IGNORE INTO sync_tombstones (company_id, table_name, row_uuid) VALUES (%s, %s, %s)',
+            (claims.get('company_id'), 'categories', row['uuid'])
+        )
     conn.commit()
     conn.close()
     return jsonify({"message": "Categoría eliminada"})
@@ -280,10 +286,18 @@ def delete_product(pid):
         return jsonify({"error": "Acceso denegado"}), 403
     where, params = company_clause(claims)
     conn = get_db()
+    row = conn.execute(
+        f'SELECT uuid FROM products WHERE id=%s{where}', (pid, *params)
+    ).fetchone()
     try:
         conn.execute(
             f'DELETE FROM products WHERE id=%s{where}', (pid, *params)
         )
+        if row and row.get('uuid'):
+            conn.execute(
+                'INSERT IGNORE INTO sync_tombstones (company_id, table_name, row_uuid) VALUES (%s, %s, %s)',
+                (claims.get('company_id'), 'products', row['uuid'])
+            )
         conn.commit()
     except pymysql.err.IntegrityError:
         conn.close()
